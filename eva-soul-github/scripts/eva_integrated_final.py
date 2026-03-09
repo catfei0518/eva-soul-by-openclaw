@@ -16,7 +16,7 @@ SCRIPT_DIR = os.path.expanduser("~/.openclaw/workspace/scripts")
 MEMORY_DIR = os.path.expanduser("~/.openclaw/workspace/memory")
 
 # 导入概念抽象系统
-CONCEPT_DIR = os.path.expanduser("~/.openclaw/workspace/skills/eva-soul/eva-soul-github/scripts")
+CONCEPT_DIR = os.path.expanduser("~/.openclaw/workspace/skills/eva-soul-integration/eva-soul-github/scripts")
 sys.path.insert(0, CONCEPT_DIR)
 
 # 导入凭据助手
@@ -62,7 +62,7 @@ except ImportError:
     TIER_ARCHIVE_ENABLED = False
 
 # 导入标签系统
-TAG_SYSTEM_DIR = os.path.expanduser("~/.openclaw/workspace/skills/eva-soul")
+TAG_SYSTEM_DIR = os.path.expanduser("~/.openclaw/workspace/skills/eva-soul-integration")
 sys.path.insert(0, TAG_SYSTEM_DIR)
 try:
     from eva_memory_tags import TagSystem
@@ -81,7 +81,7 @@ except ImportError:
 
 # 导入智能路由模块
 try:
-    sys.path.insert(0, "/home/node/.openclaw/workspace/skills/eva-soul")
+    sys.path.insert(0, "/home/node/.openclaw/workspace/skills/eva-soul-integration")
     from eva_smart_router import get_route, TRIGGER_CATEGORIES
     SMART_ROUTER_ENABLED = True
 except ImportError:
@@ -91,7 +91,7 @@ except ImportError:
 
 # 导入增强版情感联动模块
 try:
-    sys.path.insert(0, "/home/node/.openclaw/workspace/skills/eva-soul")
+    sys.path.insert(0, "/home/node/.openclaw/workspace/skills/eva-soul-integration")
     from eva_emotion_link_v2 import get_emotion_context, EMOTION_CONFIG, analyze_emotion_change
     EMOTION_LINK_ENABLED = True
 except ImportError:
