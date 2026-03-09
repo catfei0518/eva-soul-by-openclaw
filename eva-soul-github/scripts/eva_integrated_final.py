@@ -21,12 +21,7 @@ sys.path.insert(0, CONCEPT_DIR)
 
 # 导入凭据助手
 try:
-    from eva_vault import get_vault
-    from eva_credential_helper import search_credentials, get_credential, list_all_credentials
-    CREDENTIAL_ENABLED = True
 except ImportError:
-    CREDENTIAL_ENABLED = False
-    print("⚠️ 凭据助手未启用")
 try:
     from eva_concept import realtime_abstract, daily_incremental_update, weekly_deep_refresh, get_concept_stats
     CONCEPT_SYSTEM_ENABLED = True
