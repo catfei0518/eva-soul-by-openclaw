@@ -1,0 +1,10 @@
+{
+  "owner": "eva",
+  "slug": "eva-soul-integration",
+  "displayName": "夏娃之魂集成",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773180000000,
+    "description": "将夏娃之魂认知系统自动集成到每次对话中"
+  }
+}
