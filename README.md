@@ -1,6 +1,6 @@
 # 🎀 EVA Soul Plugin
 
-[English](./README.md) | [中文](./README_CN.md)
+[English](./README_EN.md) | [中文](./README.md)
 
 OpenClaw 官方插件 - AI 人格、情感、记忆、性格的完整认知引擎
 
