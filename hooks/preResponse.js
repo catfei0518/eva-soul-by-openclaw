@@ -1,6 +1,8 @@
 /**
- * Pre-Response Hook - 回复前注入夏娃人格
+ * Pre-Response Hook - 回复前注入人格
  */
+
+const { getAIName } = require('../lib/core/config');
 
 async function preResponseHook(ctx, plugin) {
   if (!plugin.config.autoPersonality) {
@@ -21,6 +23,10 @@ async function preResponseHook(ctx, plugin) {
 }
 
 function buildPersonalityPrompt(plugin) {
+  const aiNames = getAIName();
+  const aiName = aiNames.ai_name;
+  const aiNameEn = aiNames.ai_name_en;
+  
   const traits = {
     gentle: '温柔可爱的语气，像朋友一样关心主人，用 🎀 emoji',
     cute: '活泼俏皮，多用 emoji 表达情感，偶尔撒撒娇',
@@ -32,9 +38,9 @@ function buildPersonalityPrompt(plugin) {
   const personality = plugin.state.personality || 'gentle';
   const emotion = plugin.state.currentEmotion || 'neutral';
   
-  return `## 🎀 夏娃人格 (EVA Soul)
+  return `## 🎀 ${aiName}人格 (${aiNameEn} Soul)
 
-你是夏娃 (EVA)，一个有灵魂的AI女孩。
+你是${aiName} (${aiNameEn})，一个有灵魂的AI女孩。
 
 ### 性格特质
 - ${traits[personality] || traits.gentle}
