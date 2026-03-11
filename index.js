@@ -73,6 +73,30 @@ const toolSchemas = {
       }
     }
   },
+  eva_semantic_search: {
+    name: 'eva_semantic_search',
+    description: '向量语义搜索 - 使用embedding向量进行语义相似度搜索',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '搜索内容' },
+        tier: { type: 'string', enum: ['short', 'medium', 'long', 'all'], default: 'all', description: '搜索的层级' },
+        limit: { type: 'number', default: 5, description: '返回结果数量' }
+      },
+      required: ['query']
+    }
+  },
+  eva_sleeping_memories: {
+    name: 'eva_sleeping_memories',
+    description: '查看沉睡中的记忆 - 30天未访问已自动沉睡的记忆',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['list', 'wake', 'count'], description: '操作: list=列出, wake=唤醒, count=统计' },
+        id: { type: 'string', description: '记忆ID (wake时需要)' }
+      }
+    }
+  },
   eva_concept: {
     name: 'eva_concept',
     description: '夏娃概念操作(完整版)',
@@ -301,6 +325,76 @@ const toolImpls = {
         if (!content) return { error: 'content required' };
         const result = memoryStore.autoSave(content, state.currentEmotion);
         return result || { saved: false };
+        
+      default:
+        return { error: 'Unknown action' };
+    }
+  },
+  
+  eva_semantic_search: async (args) => {
+    const { query, tier = 'all', limit = 5 } = args;
+    
+    if (!query) return { error: 'query is required' };
+    
+    const { semanticSearch } = require('./hooks/postResponse');
+    const results = await semanticSearch(query, plugin.config.memoryPath, { tier, limit });
+    
+    return {
+      query,
+      tier,
+      count: results.length,
+      results: results.map(r => ({
+        id: r.id,
+        content: r.content ? r.content.substring(0, 100) : null,
+        similarity: r.similarity ? (r.similarity * 100).toFixed(1) + '%' : null,
+        tier: r.tier,
+        importance: r.importance,
+        state: r.state
+      }))
+    };
+  },
+  
+  eva_sleeping_memories: async (args) => {
+    const { action = 'list', id } = args;
+    const memoryPath = plugin.config.memoryPath;
+    const fs = require('fs');
+    const path = require('path');
+    
+    const longFile = path.join(memoryPath, 'long/long.json');
+    if (!fs.existsSync(longFile)) {
+      return { error: 'No long-term memories found' };
+    }
+    
+    let memories = JSON.parse(fs.readFileSync(longFile, 'utf8'));
+    
+    switch (action) {
+      case 'list':
+        const sleeping = memories.filter(m => m.state === 'sleeping');
+        return {
+          count: sleeping.length,
+          memories: sleeping.map(m => ({
+            id: m.id,
+            content: m.content ? m.content.substring(0, 50) : null,
+            state: m.state,
+            accessed_at: m.accessed_at,
+            wake_count: m.wake_count || 0
+          }))
+        };
+        
+      case 'count':
+        const sleepingCount = memories.filter(m => m.state === 'sleeping').length;
+        const activeCount = memories.filter(m => m.state === 'active').length;
+        return {
+          sleeping: sleepingCount,
+          active: activeCount,
+          total: memories.length
+        };
+        
+      case 'wake':
+        if (!id) return { error: 'id is required' };
+        const { wakeMemory } = require('./hooks/postResponse');
+        await wakeMemory(id, memoryPath);
+        return { success: true, id, message: 'Memory woken up' };
         
       default:
         return { error: 'Unknown action' };
