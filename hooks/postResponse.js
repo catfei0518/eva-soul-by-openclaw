@@ -8,10 +8,12 @@
  * - 向量语义检索：支持相似度搜索
  * - 沉睡/唤醒：不常用的记忆自动沉睡
  * - 访问频率权重：经常访问=更重要
+ * - 错误处理：API重试、降级处理、错误日志
  */
 
 const fs = require('fs');
 const path = require('path');
+const { fetchWithRetry, logError, apiCache } = require('./errorHandler');
 
 const MEMORY_CONFIG = {
   short: {
@@ -138,7 +140,14 @@ async function saveDialogueToShortTerm(plugin, userMessage, assistantMessage) {
  */
 async function generateEmbedding(memoryId, content, memoryPath) {
   try {
-    const response = await fetch(VECTOR_CONFIG.apiUrl, {
+    // 使用缓存
+    const cacheKey = `emb_${content.substring(0, 50)}`;
+    if (apiCache.has(cacheKey)) {
+      console.log('🎀 EVA: 使用缓存embedding');
+      return;
+    }
+    
+    const response = await fetchWithRetry(VECTOR_CONFIG.apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${VECTOR_CONFIG.apiKey}`,
@@ -148,11 +157,12 @@ async function generateEmbedding(memoryId, content, memoryPath) {
         model: VECTOR_CONFIG.model,
         input: [content]
       })
-    });
+    }, { maxRetries: 3, timeout: 15000 });
     
     const data = await response.json();
     if (data.data && data.data[0]) {
       const embedding = data.data[0].embedding;
+      apiCache.set(cacheKey, embedding); // 缓存
       await saveEmbedding(memoryId, embedding, memoryPath);
     }
   } catch (e) {
