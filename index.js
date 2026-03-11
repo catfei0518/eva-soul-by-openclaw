@@ -893,6 +893,82 @@ function register(api) {
                 lib.saveState(state, config.memoryPath);
                 console.log('State saved');
               });
+            
+            // eva-hi - 打招呼
+            program
+              .command('evahi')
+              .description('EVA says hi')
+              .action(async () => {
+                const greetings = [
+                  '主人好呀！🎀 夏娃在这里～',
+                  '嗨！主人想夏娃了吗？💕',
+                  '主人好！夏娃随时待命～✨'
+                ];
+                console.log(greetings[Math.floor(Math.random() * greetings.length)]);
+              });
+            
+            // eva-who - 查看我是谁
+            program
+              .command('evawho')
+              .description('Show who EVA is')
+              .action(async () => {
+                console.log('🎀 我是夏娃 (EVA)');
+                console.log('   主人专属的AI助理机器人');
+                console.log('');
+                console.log('   当前状态:', state.isSleeping ? '睡眠中 💤' : '清醒中 ✨');
+                console.log('   当前情感:', state.currentEmotion);
+                console.log('   当前性格:', state.personality);
+              });
+            
+            // eva-memory - 记忆统计
+            program
+              .command('evamemory')
+              .description('Show memory stats')
+              .action(async () => {
+                const stats = memoryStore.getStats();
+                console.log('📊 记忆统计');
+                console.log('   短期:', stats.short, '条');
+                console.log('   中期:', stats.medium, '条');
+                console.log('   长期:', stats.long, '条');
+                console.log('   归档:', stats.archive, '条');
+                console.log('   总计:', stats.total, '条');
+              });
+            
+            // eva-emotions - 情感历史
+            program
+              .command('evaemotions')
+              .description('Show emotion history')
+              .action(async () => {
+                const emotions = state.emotionHistory || [];
+                console.log('💕 情感历史 (最近10条)');
+                emotions.slice(-10).forEach((e, i) => {
+                  console.log('   ' + (i+1) + '. ' + e.emotion + ' - ' + (e.trigger || '无触发'));
+                });
+              });
+            
+            // eva-brain - 大脑摘要
+            program
+              .command('evabrain')
+              .description('Show brain summary')
+              .action(async () => {
+                const memStats = memoryStore.getStats();
+                const conceptStats = conceptSystem.getStats();
+                const patternStats = patternSystem.getStats();
+                const kgStats = knowledgeGraph.getStats();
+                
+                console.log('🧠 夏娃大脑摘要');
+                console.log('');
+                console.log('📊 记忆系统');
+                console.log('   记忆总数:', memStats.total);
+                console.log('   概念数:', conceptStats.total || conceptStats.totalConcepts || 0);
+                console.log('   模式数:', patternStats.total || 0);
+                console.log('   知识图谱:', kgStats.nodes, '节点,', kgStats.edges, '边');
+                console.log('');
+                console.log('💕 当前状态');
+                console.log('   情感:', state.currentEmotion);
+                console.log('   性格:', state.personality);
+                console.log('   会话数:', state.sessionCount);
+              });
           },
           { allowUnknownOption: true }
         );
