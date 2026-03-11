@@ -969,6 +969,19 @@ function register(api) {
                 console.log('   性格:', state.personality);
                 console.log('   会话数:', state.sessionCount);
               });
+            
+            // eva-perf - 性能监控
+            program
+              .command('evaperf')
+              .description('Show performance stats')
+              .action(async () => {
+                try {
+                  const { perfMonitor } = require('./hooks/performanceMonitor');
+                  perfMonitor.printReport();
+                } catch (e) {
+                  console.log('❌ 性能监控不可用');
+                }
+              });
           },
           { allowUnknownOption: true }
         );
