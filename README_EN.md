@@ -1,11 +1,12 @@
-# 🎀 EVA Soul Plugin
+# EVA Soul Plugin English README
+
 > AI Cognitive System with Soul
-![EVA Soul](https://repository-images.githubusercontent.com/1175981838/57116edc-cf8f-4de3-90bb-69f30eaeec2f)
-<p align="center">
-  <img src="https://img.shields.io/badge/version-1.2.2-blue" alt="Version">
-  <img src="https://img.shields.io/badge/python-3.11+-green" alt="Python">
-  <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
-</p>
+> 
+> 
+
+
+  
+  
 
 [English](./README_EN.md) | [中文](./README.md)
 
