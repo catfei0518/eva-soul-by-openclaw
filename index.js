@@ -718,73 +718,94 @@ function register(api) {
     
     // ==================== 注册 CLI ====================
     
-    if (api && api.registerCli) {
-      api.registerCli('eva', 'EVA Soul commands', [
-        {
-          name: 'status',
-          description: 'Show EVA status',
-          handler: async () => JSON.stringify(lib.getStateSummary(state), null, 2)
-        },
-        {
-          name: 'emotion',
-          description: 'Get/set EVA emotion',
-          handler: async (args) => {
-            if (args[0]) {
-              state = lib.updateEmotion(state, args[0]);
-              lib.saveState(state, config.memoryPath);
-              return `Emotion set to: ${args[0]}`;
-            }
-            return `Current emotion: ${state.currentEmotion}`;
-          }
-        },
-        {
-          name: 'personality',
-          description: 'Get/set EVA personality',
-          handler: async (args) => {
-            if (args[0]) {
-              state = lib.updatePersonality(state, args[0]);
-              lib.saveState(state, config.memoryPath);
-              return `Personality set to: ${args[0]}`;
-            }
-            return `Current personality: ${state.personality}`;
-          }
-        },
-        {
-          name: 'stats',
-          description: 'Show EVA full stats',
-          handler: async () => JSON.stringify({
-            state: lib.getStateSummary(state),
-            memory: memoryStore.getStats(),
-            concepts: conceptSystem.getStats(),
-            patterns: patternSystem.getStats(),
-            knowledge: knowledgeGraph.getStats()
-          }, null, 2)
-        },
-        {
-          name: 'sleep',
-          description: 'Sleep/wake EVA',
-          handler: async (args) => {
-            if (args[0] === 'sleep') {
-              state = lib.setSleepState(state, true);
-              lib.saveState(state, config.memoryPath);
-              return 'EVA is now sleeping';
-            } else if (args[0] === 'wake') {
-              state = lib.setSleepState(state, false);
-              lib.saveState(state, config.memoryPath);
-              return 'EVA is now awake';
-            }
-            return `EVA is ${state.isSleeping ? 'sleeping' : 'awake'}`;
-          }
-        },
-        {
-          name: 'save',
-          description: 'Force save state',
-          handler: async () => {
-            lib.saveState(state, config.memoryPath);
-            return 'State saved';
-          }
-        }
-      ]);
+    if (typeof api.registerCli === 'function') {
+      try {
+        // 使用不同的命令名避免冲突
+        api.registerCli(
+          ({ program }) => {
+            // eva-status
+            program
+              .command('evastatus')
+              .description('Show EVA status')
+              .action(async () => {
+                console.log(JSON.stringify(lib.getStateSummary(state), null, 2));
+              });
+            
+            // eva-emotion
+            program
+              .command('evaemotion [value]')
+              .description('Get/set EVA emotion')
+              .action(async (value) => {
+                if (value) {
+                  state = lib.updateEmotion(state, value);
+                  lib.saveState(state, config.memoryPath);
+                  console.log(`Emotion set to: ${value}`);
+                } else {
+                  console.log(`Current emotion: ${state.currentEmotion}`);
+                }
+              });
+            
+            // eva-personality
+            program
+              .command('evapersonality [value]')
+              .description('Get/set EVA personality')
+              .action(async (value) => {
+                if (value) {
+                  state = lib.updatePersonality(state, value);
+                  lib.saveState(state, config.memoryPath);
+                  console.log(`Personality set to: ${value}`);
+                } else {
+                  console.log(`Current personality: ${state.personality}`);
+                }
+              });
+            
+            // eva-stats
+            program
+              .command('evastats')
+              .description('Show EVA full stats')
+              .action(async () => {
+                console.log(JSON.stringify({
+                  state: lib.getStateSummary(state),
+                  memory: memoryStore.getStats(),
+                  concepts: conceptSystem.getStats(),
+                  patterns: patternSystem.getStats(),
+                  knowledge: knowledgeGraph.getStats()
+                }, null, 2));
+              });
+            
+            // eva-sleep
+            program
+              .command('evasleep [action]')
+              .description('Sleep/wake EVA')
+              .action(async (action) => {
+                if (action === 'sleep') {
+                  state = lib.setSleepState(state, true);
+                  lib.saveState(state, config.memoryPath);
+                  console.log('EVA is now sleeping');
+                } else if (action === 'wake') {
+                  state = lib.setSleepState(state, false);
+                  lib.saveState(state, config.memoryPath);
+                  console.log('EVA is now awake');
+                } else {
+                  console.log(`EVA is ${state.isSleeping ? 'sleeping' : 'awake'}`);
+                }
+              });
+            
+            // eva-save
+            program
+              .command('evasave')
+              .description('Force save state')
+              .action(async () => {
+                lib.saveState(state, config.memoryPath);
+                console.log('State saved');
+              });
+          },
+          { allowUnknownOption: true }
+        );
+        console.log('   ✅ CLI registered');
+      } catch (err) {
+        console.log(`   ❌ CLI register failed: ${err.message}`);
+      }
     }
     
     console.log('🎀 EVA Soul Plugin fully registered');
