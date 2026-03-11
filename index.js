@@ -1,5 +1,5 @@
 /**
- * EVA Soul Plugin - 夏娃之魂 OpenClaw 官方插件 (完整版 - 修复版)
+ * EVA Soul Plugin - OpenClaw 官方插件
  */
 
 const fs = require('fs');
@@ -7,6 +7,35 @@ const path = require('path');
 
 // 导入核心模块
 const lib = require('./lib');
+const { getAIName, getUserConfig } = lib.getDefaultConfig ? {} : require('./lib/core/config');
+
+// 获取AI名称的辅助函数
+function getAIDescription(type) {
+  try {
+    const { getAIName } = require('./lib/core/config');
+    const names = getAIName();
+    const map = {
+      'status': names.ai_name + '完整状态',
+      'emotion': names.ai_name + '情感操作',
+      'personality': names.ai_name + '性格操作',
+      'memory': names.ai_name + '记忆操作',
+      'decide': names.ai_name + '决策建议',
+      'motivation': names.ai_name + '动机操作',
+      'values': names.ai_name + '价值观操作',
+      'sleep': names.ai_name + '睡眠/唤醒',
+      'ask': names.ai_name + '主动提问'
+    };
+    const enMap = { 'name': names.ai_name_en, 'en': names.ai_name_en };
+    if (enMap[type]) return enMap[type];
+    return map[type] || names.ai_name + '操作';
+  } catch(e) {
+    const userName = (typeof getUserConfig === 'function') ? getUserConfig().name : '主人';
+    const uc = (typeof getUserConfig === 'function') ? getUserConfig() : {name:'主人'};
+    const ai = (typeof getAIDescription === 'function' && type !== 'name') ? '' : (getAIConfig ? getAIConfig().ai_name : '夏娃');
+    return ai + type;
+  }
+}
+
 
 // 插件配置
 let config = lib.getDefaultConfig();
@@ -29,7 +58,7 @@ let valuesSystem = null;
 const toolSchemas = {
   eva_status: {
     name: 'eva_status',
-    description: '获取夏娃完整状态',
+    description: '获取' + getAIDescription('status'),
     parameters: {
       type: 'object',
       properties: {},
@@ -38,7 +67,7 @@ const toolSchemas = {
   },
   eva_emotion: {
     name: 'eva_emotion',
-    description: '夏娃情感操作',
+    description: getAIDescription('emotion'),
     parameters: {
       type: 'object',
       properties: {
@@ -49,7 +78,7 @@ const toolSchemas = {
   },
   eva_personality: {
     name: 'eva_personality',
-    description: '夏娃性格操作',
+    description: getAIDescription('personality'),
     parameters: {
       type: 'object',
       properties: {
@@ -60,7 +89,7 @@ const toolSchemas = {
   },
   eva_memory: {
     name: 'eva_memory',
-    description: '夏娃记忆操作',
+    description: getAIDescription('memory'),
     parameters: {
       type: 'object',
       properties: {
@@ -141,7 +170,7 @@ const toolSchemas = {
   },
   eva_decide: {
     name: 'eva_decide',
-    description: '夏娃决策建议',
+    description: getAIDescription('decide'),
     parameters: {
       type: 'object',
       properties: {
@@ -164,7 +193,7 @@ const toolSchemas = {
   },
   eva_motivation: {
     name: 'eva_motivation',
-    description: '夏娃动机操作',
+    description: getAIDescription('motivation'),
     parameters: {
       type: 'object',
       properties: {
@@ -176,7 +205,7 @@ const toolSchemas = {
   },
   eva_values: {
     name: 'eva_values',
-    description: '夏娃价值观操作',
+    description: getAIDescription('values'),
     parameters: {
       type: 'object',
       properties: {
@@ -187,7 +216,7 @@ const toolSchemas = {
   },
   eva_sleep: {
     name: 'eva_sleep',
-    description: '夏娃睡眠/唤醒',
+    description: getAIDescription('sleep'),
     parameters: {
       type: 'object',
       properties: {
@@ -197,7 +226,7 @@ const toolSchemas = {
   },
   eva_ask: {
     name: 'eva_ask',
-    description: '夏娃主动提问',
+    description: getAIDescription('ask'),
     parameters: {
       type: 'object',
       properties: {
@@ -615,7 +644,7 @@ const toolImpls = {
         
         if (lastInteraction > 5 * 60 * 1000) {
           const suggestions = [
-            '主人最近有什么想聊的吗？',
+            getUserConfig ? getUserConfig().name + '最近有什么想聊的吗？' : '主人最近有什么想聊的吗？',
             '有什么我可以帮你的吗？',
             '今天过得怎么样？',
             '有什么新项目吗？'
@@ -900,9 +929,9 @@ function register(api) {
               .description('EVA says hi')
               .action(async () => {
                 const greetings = [
-                  '主人好呀！🎀 夏娃在这里～',
-                  '嗨！主人想夏娃了吗？💕',
-                  '主人好！夏娃随时待命～✨'
+                  (getUserConfig ? getUserConfig().name : '主人') + '好呀！🎀 ' + getAIDescription('name') + '在这里～',
+                  '嗨！主人想' + getAIDescription('name') + '了吗？💕',
+                  (getUserConfig ? getUserConfig().name : '主人') + '好！' + getAIDescription('name') + '随时待命～✨'
                 ];
                 console.log(greetings[Math.floor(Math.random() * greetings.length)]);
               });
@@ -912,7 +941,7 @@ function register(api) {
               .command('evawho')
               .description('Show who EVA is')
               .action(async () => {
-                console.log('🎀 我是夏娃 (EVA)');
+                console.log('🎀 我是' + getAIDescription('name') + ' (' + getAIDescription('en') + ')');
                 console.log('   主人专属的AI助理机器人');
                 console.log('');
                 console.log('   当前状态:', state.isSleeping ? '睡眠中 💤' : '清醒中 ✨');
@@ -956,7 +985,7 @@ function register(api) {
                 const patternStats = patternSystem.getStats();
                 const kgStats = knowledgeGraph.getStats();
                 
-                console.log('🧠 夏娃大脑摘要');
+                console.log('🧠 ' + getAIDescription('name') + '大脑摘要');
                 console.log('');
                 console.log('📊 记忆系统');
                 console.log('   记忆总数:', memStats.total);

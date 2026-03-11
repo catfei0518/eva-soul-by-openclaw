@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { fetchWithRetry, logError, apiCache } = require('./errorHandler');
 const { perfMonitor } = require('./performanceMonitor');
+const { getAIName, getUserConfig } = require('../lib/core/config');
 
 const MEMORY_CONFIG = {
   short: {
@@ -89,6 +90,17 @@ async function saveDialogueToShortTerm(plugin, userMessage, assistantMessage) {
   // 评估重要性
   const importance = evaluateImportance(userMessage, assistantMessage);
   
+  // === 理解层: 对重要对话进行AI摘要 ===
+  let understanding = null;
+  if (importance >= 6) {
+    try {
+      understanding = await understandContent(userMessage, assistantMessage);
+      console.log('🎀 EVA: 理解层 - ' + (understanding?.summary?.substring(0, 30) || '无'));
+    } catch (e) {
+      console.warn('⚠️ EVA: 理解层失败:', e.message);
+    }
+  }
+  
   // 创建记忆条目
   const memory = {
     id: `短_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -105,6 +117,8 @@ async function saveDialogueToShortTerm(plugin, userMessage, assistantMessage) {
     emotion: plugin.state.currentEmotion || 'neutral',
     emotion_intensity: plugin.state.emotionIntensity || 0,
     tags: extractTags(userMessage, { emotion: plugin.state.currentEmotion, intensity: plugin.state.emotionIntensity }),
+    // 理解层新增字段
+    understanding: understanding,
     embedding: null // 向量 (后续生成)
   };
   
@@ -210,6 +224,10 @@ async function saveEmbedding(memoryId, embedding, memoryPath) {
  */
 async function semanticSearch(query, memoryPath, options = {}) {
   const { tier = 'all', limit = 5 } = options;
+  const results = [];
+  
+  // 解析查询意图
+  const queryIntent = parseQueryIntent(query);
   
   try {
     // 生成查询向量
@@ -230,7 +248,6 @@ async function semanticSearch(query, memoryPath, options = {}) {
     
     // 搜索所有层级
     const tiers = tier === 'all' ? ['short', 'medium', 'long'] : [tier];
-    const results = [];
     
     for (const t of tiers) {
       const file = path.join(memoryPath, `${t}/${t}.json`);
@@ -239,10 +256,207 @@ async function semanticSearch(query, memoryPath, options = {}) {
       const memories = JSON.parse(fs.readFileSync(file, 'utf8'));
       
       for (const m of memories) {
-        if (m.embedding && m.state !== 'archived') {
-          const similarity = cosineSimilarity(queryEmbedding, m.embedding);
-          results.push({ ...m, similarity, tier: t });
+        if (m.state === 'archived') continue;
+        
+        let similarity = 0;
+        let matchField = '';
+        
+        // 1. 向量搜索 (如果存在)
+        if (m.embedding) {
+          similarity = Math.max(similarity, cosineSimilarity(queryEmbedding, m.embedding));
+          if (similarity > 0) matchField = 'content';
         }
+        
+        // 2. 搜索 understanding 字段
+        if (m.understanding) {
+          const u = m.understanding;
+          
+          // 根据查询意图搜索对应字段
+          if (queryIntent.where && u.where) {
+            const sim = cosineSimilarity(queryEmbedding, await getEmbedding(queryIntent.where));
+            if (sim > similarity) {
+              similarity = sim;
+              matchField = 'understanding.where';
+            }
+          }
+          if (queryIntent.when && u.when) {
+            const sim = cosineSimilarity(queryEmbedding, await getEmbedding(queryIntent.when));
+            if (sim > similarity) {
+              similarity = sim;
+              matchField = 'understanding.when';
+            }
+          }
+          if (queryIntent.emotion && u.emotion) {
+            const sim = cosineSimilarity(queryEmbedding, await getEmbedding(u.emotion));
+            if (sim > similarity) {
+              similarity = sim;
+              matchField = 'understanding.emotion';
+            }
+          }
+          if (queryIntent.who && u.who) {
+            const sim = cosineSimilarity(queryEmbedding, await getEmbedding(u.who));
+            if (sim > similarity) {
+              similarity = sim;
+              matchField = 'understanding.who';
+            }
+          }
+          if (queryIntent.what && u.what) {
+            const sim = cosineSimilarity(queryEmbedding, await getEmbedding(u.what));
+            if (sim > similarity) {
+              similarity = sim;
+              matchField = 'understanding.what';
+            }
+          }
+          
+          // 也搜索summary字段
+          if (u.summary) {
+            const sim = cosineSimilarity(queryEmbedding, await getEmbedding(u.summary));
+            if (sim > similarity) {
+              similarity = sim;
+              matchField = 'understanding.summary';
+            }
+          }
+        }
+        
+        if (similarity > 0.3) {
+          results.push({ ...m, similarity, matchField, tier: t, source: 'vector' });
+        }
+      }
+    }
+    
+    // 搜索MEMORY.md (文本匹配)
+    const memoryMDResults = await searchMemoryMD(query, memoryPath, limit);
+    results.push(...memoryMDResults);
+    
+    // 按相似度排序
+    results.sort((a, b) => b.similarity - a.similarity);
+    
+    return results.slice(0, limit);
+  } catch (e) {
+    console.warn('⚠️ EVA: 语义搜索失败:', e.message);
+    // 如果向量搜索失败，只返回MEMORY.md结果
+    try {
+      const memoryMDResults = await searchMemoryMD(query, memoryPath, limit);
+      return memoryMDResults;
+    } catch (e2) {
+      return [];
+    }
+  }
+}
+
+/**
+ * 解析查询意图
+ */
+function parseQueryIntent(query) {
+  const q = query.toLowerCase();
+  const intent = {};
+  
+  // 地点相关
+  if (q.includes('去哪') || q.includes('哪里') || q.includes('地点') || q.includes('位置')) {
+    intent.where = q;
+  }
+  // 时间相关
+  if (q.includes('什么时候') || q.includes('几点') || q.includes('哪天') || q.includes('时间')) {
+    intent.when = q;
+  }
+  // 情感相关
+  if (q.includes('情绪') || q.includes('心情') || q.includes('开心') || q.includes('难过')) {
+    intent.emotion = q;
+  }
+  // 人物相关
+  if (q.includes('谁') || q.includes('某人')) {
+    intent.who = q;
+  }
+  // 事件相关
+  if (q.includes('什么') || q.includes('干嘛') || q.includes('事情')) {
+    intent.what = q;
+  }
+  
+  return intent;
+}
+
+/**
+ * 获取文本向量 (用于understanding字段搜索)
+ */
+async function getEmbedding(text) {
+  if (!text) return null;
+  
+  try {
+    const response = await fetch(VECTOR_CONFIG.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${VECTOR_CONFIG.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: VECTOR_CONFIG.model,
+        input: [text]
+      })
+    });
+    
+    const data = await response.json();
+    return data.data?.[0]?.embedding || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * 搜索MEMORY.md (文本匹配)
+ */
+async function searchMemoryMD(query, memoryPath, limit = 5) {
+  const results = [];
+  
+  try {
+    // 找到workspace根目录的MEMORY.md
+    const workspacePath = path.join(memoryPath, '..');
+    const memoryMDPath = path.join(workspacePath, 'MEMORY.md');
+    
+    if (!fs.existsSync(memoryMDPath)) {
+      return results;
+    }
+    
+    const content = fs.readFileSync(memoryMDPath, 'utf8');
+    
+    // 解析Markdown为纯文本 (去掉标题格式)
+    const plainText = content
+      .replace(/^#+ .+$/gm, '') // 移除标题
+      .replace(/^\*\*|__|\*\*|__$/g, '') // 移除粗体标记
+      .replace(/^\*|_|\*|_$/g, '') // 移除斜体标记
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // 移除链接，保留文字
+      .replace(/^> .+$/gm, '') // 移除引用
+      .replace(/\n+/g, ' ') // 合并为单行
+      .trim();
+    
+    // 简单文本匹配 (检查是否包含查询词)
+    const queryLower = query.toLowerCase();
+    const lines = content.split('\n').filter(line => {
+      const trimmed = line.trim();
+      return trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('>');
+    });
+    
+    for (const line of lines) {
+      const lineLower = line.toLowerCase();
+      // 计算简单的相似度 (匹配字符数/查询长度)
+      let matchCount = 0;
+      for (let i = 0; i < queryLower.length; i++) {
+        if (lineLower.includes(queryLower[i])) {
+          matchCount++;
+        }
+      }
+      const similarity = matchCount / queryLower.length;
+      
+      // 只返回匹配度>0.3的结果
+      if (similarity > 0.3 && line.length > 5) {
+        results.push({
+          id: 'memory-md-' + Math.random().toString(36).substr(2, 9),
+          content: line.trim(),
+          importance: Math.round(similarity * 10),
+          similarity: similarity * 0.5, // MEMORY.md权重较低
+          tier: 'long',
+          source: 'memory-md',
+          tags: { type: ['manual'] }
+        });
       }
     }
     
@@ -251,7 +465,7 @@ async function semanticSearch(query, memoryPath, options = {}) {
     
     return results.slice(0, limit);
   } catch (e) {
-    console.warn('⚠️ EVA: 语义搜索失败:', e.message);
+    console.warn('⚠️ EVA: MEMORY.md搜索失败:', e.message);
     return [];
   }
 }
@@ -281,7 +495,7 @@ function cosineSimilarity(a, b) {
 function evaluateImportance(userMessage, assistantMessage, emotionData = {}) {
   const msg = (userMessage + ' ' + (assistantMessage || '')).toLowerCase();
   
-  // 夏娃的感性/理性比例 (来自设计文档)
+  // AI的感性/理性比例 (来自设计文档)
   const EMOTIONAL_RATIO = 0.7;  // 感性 70%
   const RATIONAL_RATIO = 0.3;   // 理性 30%
   
@@ -417,6 +631,82 @@ function calculateDynamicImportance(baseImportance, accessedCount) {
 }
 
 /**
+ * 理解层: 从对话中提取关键信息
+ * 只对重要对话(importance >= 6)调用
+ */
+async function understandContent(userMessage, assistantMessage = '') {
+  try {
+    // 构建prompt
+    const prompt = `从以下对话中提取关键信息，输出JSON格式：
+{
+  "who": "涉及的人物",
+  "what": "主要事件/话题", 
+  "when": "时间(如果有)",
+  "where": "地点(如果有)",
+  "emotion": "情感(开心/难过/生气/中性)",
+  "summary": "一句话概括"
+}
+
+对话:
+用户: ${userMessage}
+AI: ${assistantMessage || '(无)'}
+
+只输出JSON，不要其他内容:`;
+
+    // 调用MiniMax主模型
+    try {
+      const apiKey = process.env.MINIMAX_API_KEY || 'sk-cp-yCsXilNNQcmZzvM304QAFzifpYTxnYH4sA-NSw9O9OTGuJSfedCuEkaeFhuLDMtvci2w1b5wZmX2r0CpXTZQDy3Ni3R5oiCy5-3_DN-jksHdHJsUXgm5xN4';
+      
+      const response = await fetch('https://api.minimax.chat/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + apiKey
+        },
+        body: JSON.stringify({
+          model: 'abab6.5s-chat',
+          messages: [
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' }
+        }),
+        timeout: 15000
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const result = data.choices?.[0]?.message?.content?.trim();
+        
+        if (result) {
+          // 解析JSON
+          try {
+            const parsed = JSON.parse(result);
+            return {
+              who: parsed.who || '',
+              what: parsed.what || '',
+              when: parsed.when || '',
+              where: parsed.where || '',
+              emotion: parsed.emotion || 'neutral',
+              summary: parsed.summary || ''
+            };
+          } catch (e) {
+            return { summary: result, raw: true };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ EVA: MiniMax调用失败，尝试备用方案');
+    }
+    
+    return null;
+  } catch (e) {
+    console.warn('⚠️ EVA: 理解层失败 -', e.message);
+    return null;
+  }
+}
+
+/**
  * 提取标签
  */
 function extractTags(message, emotionData = {}) {
@@ -431,9 +721,18 @@ function extractTags(message, emotionData = {}) {
   const msg = message.toLowerCase();
   
   // ========== 1. 实体识别 (扩展版) ==========
+  const aiNames = getAIName();
+  const userConfig = getUserConfig();
+  const personEntities = [userConfig.name, aiNames.ai_name, '妈妈', '爸爸', '老婆', '老公', '宝贝', '李总', '王总', '张总', '刘总', '同事', '朋友', '家人'];
+  
+  // 用户地点
+  const userLocations = userConfig.现居地 || userConfig.籍贯 ? 
+    [userConfig.现居地, userConfig.籍贯].filter(Boolean) : 
+    ['北京', '上海', '深圳', '广州', '成都', '重庆', '遵义', '杭州', '家里', '公司', '学校', '医院'];
+  
   const entityMap = {
-    person: ['主人', '夏娃', '妈妈', '爸爸', '老婆', '老公', '宝贝', '李总', '王总', '张总', '刘总', '同事', '朋友', '家人'],
-    location: ['北京', '上海', '深圳', '广州', '成都', '重庆', '遵义', '杭州', '家里', '公司', '学校', '医院'],
+    person: personEntities,
+    location: userLocations,
     organization: ['房地产公司', '物业公司', '腾讯', '阿里', '华为', '字节', '美团', '滴滴'],
     time: ['今天', '明天', '昨天', '早上', '中午', '下午', '晚上', '夜里', '周末', '周一', '周二'],
     digital: ['手机', '电脑', '微信', 'QQ', 'Telegram', 'WhatsApp', '网站', 'APP']
@@ -580,6 +879,14 @@ async function cleanupTier(plugin, memoryPath, tier, config) {
     fs.mkdirSync(archiveDir, { recursive: true });
   }
   
+  // 先合并相同/相似的记忆
+  const { merged, duplicates } = mergeSimilarMemories(memories);
+  memories = merged;
+  
+  if (duplicates.length > 0) {
+    console.log(`🎀 EVA: ${tier}层级合并了 ${duplicates.length} 条重复记忆`);
+  }
+  
   const toArchive = [];
   const toKeep = [];
   
@@ -611,6 +918,94 @@ async function cleanupTier(plugin, memoryPath, tier, config) {
   
   // 保存剩余记忆
   fs.writeFileSync(file, JSON.stringify(toKeep, null, 2));
+}
+
+/**
+ * 合并相同/相似的记忆
+ * @param {Array} memories - 记忆数组
+ * @returns {Object} {merged: 合并后的数组, duplicates: 被合并的数组}
+ */
+function mergeSimilarMemories(memories) {
+  const merged = [];
+  const duplicates = [];
+  
+  // 按内容分组
+  const contentMap = new Map();
+  
+  for (const m of memories) {
+    // 标准化内容 (去除标点、转小写)
+    const normalized = normalizeContent(m.content || '');
+    
+    if (!normalized || normalized.length < 3) {
+      // 太短的内容不合并
+      merged.push(m);
+      continue;
+    }
+    
+    // 检查是否已有相似内容
+    let found = false;
+    for (const [key, existing] of contentMap) {
+      // 相同或高度相似 (>80%)
+      if (key === normalized || calculateSimilarity(normalized, key) > 0.8) {
+        // 合并：增加计数，更新访问时间
+        existing.merge_count = (existing.merge_count || 0) + 1;
+        existing.accessed_at = new Date().toISOString();
+        existing.accessed_count = (existing.accessed_count || 0) + 1;
+        // 保留最新的响应
+        if (m.response && !existing.response) {
+          existing.response = m.response;
+        }
+        // 添加原始ID到历史
+        if (!existing.original_ids) {
+          existing.original_ids = [existing.id];
+        }
+        existing.original_ids.push(m.id);
+        
+        duplicates.push({ ...m, merged_to: existing.id });
+        found = true;
+        break;
+      }
+    }
+    
+    if (!found) {
+      contentMap.set(normalized, { ...m, merge_count: 0, original_ids: [m.id] });
+    }
+  }
+  
+  // 将map转回数组
+  for (const [key, m] of contentMap) {
+    merged.push(m);
+  }
+  
+  return { merged, duplicates };
+}
+
+/**
+ * 标准化内容用于比较
+ */
+function normalizeContent(content) {
+  if (!content) return '';
+  return content
+    .toLowerCase()
+    .replace(/[，。！？、：；]/g, '') // 去除中文标点
+    .replace(/[.,!?;:'\"-]/g, '') // 去除英文标点
+    .replace(/\s+/g, '') // 去除空格
+    .trim();
+}
+
+/**
+ * 计算两个字符串的相似度 (Jaccard)
+ */
+function calculateSimilarity(str1, str2) {
+  if (!str1 || !str2) return 0;
+  
+  const set1 = new Set(str1.split(''));
+  const set2 = new Set(str2.split(''));
+  
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  const union = new Set([...set1, ...set2]);
+  
+  return intersection.size / union.size;
 }
 
 /**
@@ -932,7 +1327,8 @@ function extractEmotionEntities(message) {
   const msg = message.toLowerCase();
   
   // 人物实体
-  const people = ['主人', '夏娃', '妈妈', '爸爸', '李总', '王总', '张总', '朋友', '同事'];
+  const aiNames = getAIName();
+  const people = [userConfig.name, aiNames.ai_name, '妈妈', '爸爸', '李总', '王总', '张总', '朋友', '同事'];
   people.forEach(p => {
     if (msg.includes(p)) entities.push(p);
   });

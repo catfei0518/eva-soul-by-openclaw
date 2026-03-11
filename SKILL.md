@@ -1,6 +1,6 @@
 ---
 name: eva-soul
-version: 2.0.0
+version: 2.0.4
 description: 夏娃之魂 OpenClaw 官方插件 - AI人格、情感、记忆、性格的完整认知引擎
 author: EVA
 trigger:
