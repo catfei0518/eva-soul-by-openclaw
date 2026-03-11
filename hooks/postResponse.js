@@ -14,6 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { fetchWithRetry, logError, apiCache } = require('./errorHandler');
+const { perfMonitor } = require('./performanceMonitor');
 
 const MEMORY_CONFIG = {
   short: {
@@ -139,13 +140,17 @@ async function saveDialogueToShortTerm(plugin, userMessage, assistantMessage) {
  * 生成向量嵌入
  */
 async function generateEmbedding(memoryId, content, memoryPath) {
+  const startTime = Date.now();
+  
   try {
     // 使用缓存
     const cacheKey = `emb_${content.substring(0, 50)}`;
     if (apiCache.has(cacheKey)) {
       console.log('🎀 EVA: 使用缓存embedding');
+      perfMonitor.recordCacheHit(true);
       return;
     }
+    perfMonitor.recordCacheHit(false);
     
     const response = await fetchWithRetry(VECTOR_CONFIG.apiUrl, {
       method: 'POST',
@@ -164,8 +169,10 @@ async function generateEmbedding(memoryId, content, memoryPath) {
       const embedding = data.data[0].embedding;
       apiCache.set(cacheKey, embedding); // 缓存
       await saveEmbedding(memoryId, embedding, memoryPath);
+      perfMonitor.recordApiCall(true, Date.now() - startTime);
     }
   } catch (e) {
+    perfMonitor.recordApiCall(false, Date.now() - startTime, e);
     console.warn('⚠️ EVA: 向量生成失败:', e.message);
   }
 }
