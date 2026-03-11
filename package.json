@@ -1,6 +1,6 @@
 {
   "name": "eva-soul",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "description": "夏娃之魂认知系统 - AI人格、情感、记忆、性格的完整认知引擎",
   "main": "index.js",
   "type": "commonjs",
