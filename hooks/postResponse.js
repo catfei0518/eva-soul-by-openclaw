@@ -13,8 +13,8 @@
  * SECURITY MANIFEST:
  *   Environment variables accessed: SILICONFLOW_API_KEY (向量搜索API)
  *   External endpoints called: api.siliconflow.cn (向量嵌入服务)
- *   Local files read: memory/**/*.json, memory/**/*.md
- *   Local files written: memory/**/*.json
+ *   Local files read: memory/**/*.json, memory/**/*.md, chats.txt (对话计数)
+ *   Local files written: memory/**/*.json, chats.txt
  */
 
 const fs = require('fs');
