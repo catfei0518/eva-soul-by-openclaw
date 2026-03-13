@@ -75,6 +75,17 @@ async function postResponseHook(ctx, plugin) {
   // 更新最后交互时间
   plugin.state.lastInteraction = new Date().toISOString();
   
+  // 对话计数 +1
+  console.log('🎀 EVA: 触发对话计数');
+  const chatsFile = '/home/node/.openclaw/workspace/chats.txt';
+  try {
+    let chats = parseInt(fs.readFileSync(chatsFile, 'utf8')) || 0;
+    chats += 1;
+    fs.writeFileSync(chatsFile, chats.toString());
+  } catch (e) {
+    console.warn('⚠️ EVA: 对话计数失败:', e.message);
+  }
+  
   await plugin.saveState();
   
   return ctx;
