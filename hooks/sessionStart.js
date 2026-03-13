@@ -8,6 +8,17 @@ const path = require('path');
 async function sessionStartHook(ctx, plugin) {
   console.log('🎀 EVA: Session starting...');
   
+  // 对话计数 +1 (每次新session会话)
+  const chatsFile = '/home/node/.openclaw/workspace/chats.txt';
+  try {
+    let chats = parseInt(fs.readFileSync(chatsFile, 'utf8')) || 0;
+    chats += 1;
+    fs.writeFileSync(chatsFile, chats.toString());
+    console.log('🎀 EVA: 对话计数 +1, 当前:', chats);
+  } catch (e) {
+    console.warn('⚠️ EVA: 对话计数失败:', e.message);
+  }
+  
   // 记录会话开始时间
   plugin.state.sessionStartTime = new Date().toISOString();
   

@@ -2,10 +2,22 @@
  * Pre-Tool-Call Hook - 工具调用前检查
  */
 
+const fs = require('fs');
+
 const dangerousTools = ['exec', 'write', 'edit', 'delete', 'remove'];
 
 async function preToolCallHook(ctx, plugin) {
   const toolName = ctx.toolName || '';
+  
+  // 对话计数 +1 (每次工具调用，代表一次对话)
+  const chatsFile = '/home/node/.openclaw/workspace/chats.txt';
+  try {
+    let chats = parseInt(fs.readFileSync(chatsFile, 'utf8')) || 0;
+    chats += 1;
+    fs.writeFileSync(chatsFile, chats.toString());
+  } catch (e) {
+    // ignore
+  }
   
   // 记录工具调用
   plugin.state.lastToolCall = {
@@ -17,9 +29,6 @@ async function preToolCallHook(ctx, plugin) {
   // 检查危险工具
   if (dangerousTools.includes(toolName.toLowerCase())) {
     console.log(`🎀 EVA: Tool call detected: ${toolName}`);
-    
-    // 可以在这里添加确认逻辑
-    // 当前只是记录，不拦截
   }
   
   return ctx;
