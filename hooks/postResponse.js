@@ -9,6 +9,12 @@
  * - 沉睡/唤醒：不常用的记忆自动沉睡
  * - 访问频率权重：经常访问=更重要
  * - 错误处理：API重试、降级处理、错误日志
+ *
+ * SECURITY MANIFEST:
+ *   Environment variables accessed: SILICONFLOW_API_KEY (向量搜索API)
+ *   External endpoints called: api.siliconflow.cn (向量嵌入服务)
+ *   Local files read: memory/**/*.json, memory/**/*.md
+ *   Local files written: memory/**/*.json
  */
 
 const fs = require('fs');
