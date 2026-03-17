@@ -1,4 +1,5 @@
 /**
+<<<<<<< HEAD
  * Pre-Response Hook - 回复前注入人格和记忆
  */
 
@@ -12,16 +13,28 @@ const VECTOR_CONFIG = {
   apiUrl: 'https://api.siliconflow.cn/v1/embeddings'
 };
 
+=======
+ * Pre-Response Hook - 回复前注入人格
+ */
+
+const { getAIName } = require('../lib/core/config');
+
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 async function preResponseHook(ctx, plugin) {
   if (!plugin.config.autoPersonality) {
     return ctx;
   }
   
+<<<<<<< HEAD
   console.log('🎀 EVA: Injecting personality and loading memories...');
+=======
+  console.log('🎀 EVA: Injecting personality...');
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
   
   // 构建人格注入
   const personalityPrompt = buildPersonalityPrompt(plugin);
   
+<<<<<<< HEAD
   // 加载相关记忆 (使用向量搜索)
   const memoryPrompt = await loadRelevantMemories(ctx, plugin);
   
@@ -354,6 +367,16 @@ function searchRelevantConcepts(query, concepts) {
     .sort((a, b) => b.score - a.score);
 }
 
+=======
+  return {
+    ...ctx,
+    systemPrompt: ctx.systemPrompt 
+      ? ctx.systemPrompt + '\n\n' + personalityPrompt 
+      : personalityPrompt
+  };
+}
+
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 function buildPersonalityPrompt(plugin) {
   const aiNames = getAIName();
   const aiName = aiNames.ai_name;

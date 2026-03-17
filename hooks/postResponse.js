@@ -9,11 +9,23 @@
  * - 沉睡/唤醒：不常用的记忆自动沉睡
  * - 访问频率权重：经常访问=更重要
  * - 错误处理：API重试、降级处理、错误日志
+<<<<<<< HEAD
+=======
+ *
+ * SECURITY MANIFEST:
+ *   Environment variables accessed: SILICONFLOW_API_KEY (向量搜索API)
+ *   External endpoints called: api.siliconflow.cn (向量嵌入服务)
+ *   Local files read: memory/**/*.json, memory/**/*.md, chats.txt (对话计数)
+ *   Local files written: memory/**/*.json, chats.txt
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
  */
 
 const fs = require('fs');
 const path = require('path');
+<<<<<<< HEAD
 const path = require('path');
+=======
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 const { fetchWithRetry, logError, apiCache } = require('./errorHandler');
 const { perfMonitor } = require('./performanceMonitor');
 const { getAIName, getUserConfig } = require('../lib/core/config');
@@ -39,6 +51,7 @@ const MEMORY_CONFIG = {
   }
 };
 
+<<<<<<< HEAD
 // 🎯 存储优化配置
 const STORAGE_CONFIG = {
   chunkSize: 50,        // 每块50条记忆
@@ -60,6 +73,8 @@ const STORAGE_CONFIG = {
 let writeQueue = [];
 let flushTimer = null;
 
+=======
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 // 向量配置 (使用硅基流动API)
 const VECTOR_CONFIG = {
   enabled: true,
@@ -69,11 +84,14 @@ const VECTOR_CONFIG = {
 };
 
 async function postResponseHook(ctx, plugin) {
+<<<<<<< HEAD
   // 🎯 启动时从WAL恢复未保存的记忆
   if (plugin.config.memoryPath) {
     try { recoverFromWAL(plugin.config.memoryPath); } catch (e) {}
   }
   
+=======
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
   console.log('🎀 EVA: Post-response processing...');
   
   const userMessage = ctx.userMessage || '';
@@ -93,6 +111,7 @@ async function postResponseHook(ctx, plugin) {
     await saveDialogueToShortTerm(plugin, userMessage, assistantMessage);
   }
   
+<<<<<<< HEAD
   // 🎨 3. 检测并保存多模态内容（图片、语音）
   if (MULTIMEDIA_CONFIG.enabled && ctx.attachments) {
     try {
@@ -126,6 +145,8 @@ async function postResponseHook(ctx, plugin) {
     }
   }
   
+=======
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
   // 3. 定期清理过期记忆 (每小时检查一次)
   await cleanupExpiredMemories(plugin);
   
@@ -135,11 +156,17 @@ async function postResponseHook(ctx, plugin) {
   // 更新最后交互时间
   plugin.state.lastInteraction = new Date().toISOString();
   
+<<<<<<< HEAD
   // 对话计数 +1 (两种方式)
   console.log('🎀 EVA: 触发对话计数');
   
   // 1. 更新文件计数
   const chatsFile = path.join(process.env.HOME || '/root', '.openclaw/workspace/chats.txt');
+=======
+  // 对话计数 +1
+  console.log('🎀 EVA: 触发对话计数');
+  const chatsFile = '/home/node/.openclaw/workspace/chats.txt';
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
   try {
     let chats = parseInt(fs.readFileSync(chatsFile, 'utf8')) || 0;
     chats += 1;
@@ -148,6 +175,7 @@ async function postResponseHook(ctx, plugin) {
     console.warn('⚠️ EVA: 对话计数失败:', e.message);
   }
   
+<<<<<<< HEAD
   // 2. 更新内存计数
   if (typeof plugin.state.incrementInteraction === 'function') {
     plugin.state = plugin.state.incrementInteraction();
@@ -170,6 +198,12 @@ async function postResponseHook(ctx, plugin) {
   return ctx;
 }
 }
+=======
+  await plugin.saveState();
+  
+  return ctx;
+}
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 
 /**
  * 每次对话保存到短期记忆
@@ -193,6 +227,7 @@ async function saveDialogueToShortTerm(plugin, userMessage, assistantMessage) {
   }
   
   // 创建记忆条目
+<<<<<<< HEAD
 
 // 智能摘要生成
 function generateSummary(content, response) {
@@ -229,6 +264,11 @@ function generateSummary(content, response) {
     id: `短_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     content: userMessage,
     summary: generateSummary(userMessage, assistantMessage),  // 智能摘要
+=======
+  const memory = {
+    id: `短_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    content: userMessage,
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
     response: assistantMessage ? assistantMessage.substring(0, 200) : '',
     type: '短期',
     importance: importance,
@@ -264,6 +304,7 @@ function generateSummary(content, response) {
     shortMemories = shortMemories.slice(0, 200);
   }
   
+<<<<<<< HEAD
 shortMemories = shortMemories.slice(0, 200);
   }
   
@@ -295,6 +336,12 @@ shortMemories = shortMemories.slice(0, 200);
     fs.writeFileSync(indexFile, JSON.stringify(index, null, 2));
   } catch (e) { /* ignore */ }
   
+=======
+  // 保存
+  fs.writeFileSync(shortFile, JSON.stringify(shortMemories, null, 2));
+  console.log(`🎀 EVA: 对话已保存到短期记忆 (重要度: ${importance})`);
+  
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
   // 异步生成向量
   if (VECTOR_CONFIG.enabled) {
     generateEmbedding(memory.id, userMessage, memoryPath);
@@ -1010,6 +1057,7 @@ async function cleanupExpiredMemories(plugin) {
   // 3. 更新长期记忆的动态重要度
   await updateLongTermImportance(memoryPath);
   
+<<<<<<< HEAD
   // 🎯 存储优化：压缩旧归档（每天一次）
   try {
     compressOldArchives(memoryPath);
@@ -1027,11 +1075,15 @@ async function cleanupExpiredMemories(plugin) {
     } catch (e) {}
   }
 }
+=======
+  console.log('🎀 EVA: 记忆清理完成');
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 }
 
 /**
  * 清理单个层级的记忆
  */
+<<<<<<< HEAD
 
 /**
  * 存储优化：去重记忆
@@ -1104,6 +1156,8 @@ function compressOldArchives(memoryPath) {
   }
 }
 
+=======
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 async function cleanupTier(plugin, memoryPath, tier, config) {
   const file = path.join(memoryPath, config.file);
   
@@ -1120,12 +1174,15 @@ async function cleanupTier(plugin, memoryPath, tier, config) {
   
   // 先合并相同/相似的记忆
   const { merged, duplicates } = mergeSimilarMemories(memories);
+<<<<<<< HEAD
     // 🎯 存储优化：去重
     if (STORAGE_CONFIG.deduplicate) {
       const before = merged.length;
       merged = deduplicateMemories(merged);
       console.log("🎀 EVA: 去重 " + (before - merged.length) + " 条重复记忆");
     }
+=======
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
   memories = merged;
   
   if (duplicates.length > 0) {
@@ -1138,6 +1195,7 @@ async function cleanupTier(plugin, memoryPath, tier, config) {
   memories.forEach(m => {
     const created = new Date(m.created_at).getTime();
     const age = now - created;
+<<<<<<< HEAD
     const accessCount = m.accessed_count || 0;
     
     // 🔥 智能分层清理逻辑
@@ -1160,6 +1218,15 @@ async function cleanupTier(plugin, memoryPath, tier, config) {
       // 重要记忆升级
       if (importance >= config.importanceThreshold) {
         toKeep.push({ ...m, importance, upgrade: true });
+=======
+    
+    if (config.maxAge && age > config.maxAge) {
+      // 超过有效期，检查是否升级
+      const importance = calculateDynamicImportance(m.importance || 0, m.accessed_count || 0);
+      if (importance >= config.importanceThreshold) {
+        // 重要度高，升级到更高层级
+        toKeep.push({ ...m, importance: importance, upgrade: true });
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
       } else {
         // 归档
         toArchive.push({ ...m, state: 'archived' });
@@ -1178,6 +1245,7 @@ async function cleanupTier(plugin, memoryPath, tier, config) {
   
   // 保存剩余记忆
   fs.writeFileSync(file, JSON.stringify(toKeep, null, 2));
+<<<<<<< HEAD
   
   // 🔥 更新索引（删除已归档的记忆）
   try {
@@ -1193,6 +1261,8 @@ async function cleanupTier(plugin, memoryPath, tier, config) {
       fs.writeFileSync(indexFile, JSON.stringify(index, null, 2));
     }
   } catch (e) {}
+=======
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 }
 
 /**
@@ -1727,6 +1797,7 @@ module.exports = {
   getEmotionName,
   calculateDecayRate
 };
+<<<<<<< HEAD
 
 // ========== 批量写入优化 ==========
 
@@ -2158,3 +2229,5 @@ function getMultimediaMemory(memoryPath, mediaId) {
 }
 
 console.log('🎨 多模态记忆系统已加载');
+=======
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0

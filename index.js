@@ -86,13 +86,7 @@ async function executeEvaMemory(args) {
   
   switch (action) {
     case 'query':
-      // 支持高级查询参数
-      const searchOptions = { limit };
-      if (args?.tier) searchOptions.tier = args.tier;
-      if (args?.days) searchOptions.days = parseInt(args.days);
-      if (args?.minImportance) searchOptions.minImportance = parseInt(args.minImportance);
-      if (args?.sortBy) searchOptions.sortBy = args.sortBy;
-      return memoryStore.search(query, searchOptions);
+      return memoryStore.search(query, { limit });
     case 'save':
       if (!content) return { error: 'content required' };
       return memoryStore.save({ content, importance });
@@ -148,102 +142,6 @@ async function executeEvaImportance(args) {
 
 async function executeEvaFullStats() {
   return lib.getStateSummary(state);
-}
-
-async function executeEvaSelf(args) {
-  const { action = 'get', key, value, strength, belief, aspect, amount = 0.05, text, emotion = 'neutral' } = args;
-  const sc = lib.selfCognition;
-  
-  switch (action) {
-    // 自我认知
-    case 'identity':
-      return { identity: sc.getIdentity() };
-    case 'description':
-      return { description: sc.getDescription() };
-    case 'strengths':
-      return { strengths: sc.getStrengths() };
-    case 'weaknesses':
-      return { weaknesses: sc.getWeaknesses() };
-    case 'beliefs':
-      return { beliefs: sc.getBeliefs() };
-    case 'self':
-      return sc.getSelfCognition();
-    case 'intro':
-      return sc.getIntro();
-    
-    // 更新自我认知
-    case 'update':
-      if (key && value) {
-        sc.updateSelfCognition(key, value);
-        return { success: true, [key]: value };
-      }
-      return { error: 'key and value required' };
-    case 'addStrength':
-      if (strength) {
-        sc.addStrength(strength);
-        return { success: true, strengths: sc.getStrengths() };
-      }
-      return { error: 'strength required' };
-    case 'addBelief':
-      if (belief) {
-        sc.addBelief(belief);
-        return { success: true, beliefs: sc.getBeliefs() };
-      }
-      return { error: 'belief required' };
-    
-    // 元认知
-    case 'meta':
-      return sc.getMetacognition();
-    case 'improve':
-      if (aspect) {
-        sc.improveMetacognition(aspect, amount);
-        return { success: true, metacognition: sc.getMetacognition() };
-      }
-      return { error: 'aspect required (self_awareness/monitoring/regulation)' };
-    
-    // 输出通道
-    case 'channels':
-      return sc.getOutputChannels();
-    case 'channel':
-      return { channel: key, ...sc.getOutputChannels()[key] };
-    case 'updateChannel':
-      if (key && value !== undefined) {
-        sc.updateChannel(key, value === 'true' || value === true);
-        return { success: true, channels: sc.getOutputChannels() };
-      }
-      return { error: 'key and value required' };
-    
-    // 人格设置
-    case 'personality':
-      return sc.getOutputStyle();
-    case 'updatePersonality':
-      if (key && value !== undefined) {
-        sc.updatePersonality(key, parseFloat(value));
-        return { success: true, personality: sc.getOutputStyle() };
-      }
-      return { error: 'key and value required' };
-    
-    // 多通道输出
-    case 'output':
-      if (text) {
-        return sc.generateOutput(text, emotion);
-      }
-      return { error: 'text required' };
-    
-    // 完整数据
-    case 'full':
-      return sc.getFullSelf();
-    
-    // 默认: 获取状态
-    default:
-      return {
-        identity: sc.getIdentity(),
-        description: sc.getDescription(),
-        strengths: sc.getStrengths().slice(0, 3),
-        metacognition: sc.getMetacognition(),
-        channels: sc.getOutputChannels()
-      };
-  }
 }
 
 /**
@@ -351,29 +249,6 @@ function register(api) {
         description: '夏娃完整统计',
         parameters: { type: 'object', properties: {}, required: [] },
         execute: executeEvaFullStats
-      },
-      {
-        name: 'eva_self',
-        label: 'EVA Self',
-        description: '夏娃自我认知 (identity/description/strengths/beliefs/meta/channels/output)',
-        parameters: {
-          type: 'object',
-          properties: {
-            action: { 
-              type: 'string', 
-              enum: ['get', 'identity', 'description', 'strengths', 'weaknesses', 'beliefs', 'self', 'intro', 'update', 'addStrength', 'addBelief', 'meta', 'improve', 'channels', 'channel', 'updateChannel', 'personality', 'updatePersonality', 'output', 'full']
-            },
-            key: { type: 'string' },
-            value: { type: 'string' },
-            strength: { type: 'string' },
-            belief: { type: 'string' },
-            aspect: { type: 'string' },
-            amount: { type: 'number' },
-            text: { type: 'string' },
-            emotion: { type: 'string' }
-          }
-        },
-        execute: executeEvaSelf
       }
     ];
     
@@ -407,23 +282,14 @@ function registerHooks(api) {
   
   // Pre-response hook - 注入夏娃人格
   api.registerHook('pre-response', async (ctx) => {
-    try {
-      const { preResponseHook } = require('./hooks/preResponse');
-      const plugin = { state, config };
-      return await preResponseHook(ctx, plugin);
-    } catch (e) {
-      console.error('[eva-soul] Pre-response hook error:', e);
-      return {};
-    }
+    // 这里可以注入夏娃的人格特征到系统提示
+    return {};
   });
   
   // Post-response hook - 自动记忆和情感更新
   api.registerHook('post-response', async (ctx) => {
     try {
-      const { postResponseHook } = require('./hooks/postResponse');
-      const plugin = { state, config, memoryStore };
-      await postResponseHook(ctx, plugin);
-      // 更新状态
+      // 记录交互
       state = lib.recordInteraction(state, ctx.response || '');
       lib.saveState(state, config.memoryPath);
     } catch (e) {

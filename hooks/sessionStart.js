@@ -9,7 +9,11 @@ async function sessionStartHook(ctx, plugin) {
   console.log('🎀 EVA: Session starting...');
   
   // 对话计数 +1 (每次新session会话)
+<<<<<<< HEAD
   const chatsFile = path.join(process.env.HOME || '/root', '.openclaw/workspace/chats.txt');
+=======
+  const chatsFile = '/home/node/.openclaw/workspace/chats.txt';
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
   try {
     let chats = parseInt(fs.readFileSync(chatsFile, 'utf8')) || 0;
     chats += 1;

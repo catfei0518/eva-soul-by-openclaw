@@ -3,7 +3,11 @@
 > 有灵魂的AI认知系统 | AI Cognitive System with Soul
 ![夏娃之魂](https://repository-images.githubusercontent.com/1175981838/57116edc-cf8f-4de3-90bb-69f30eaeec2f)
 <p align="center">
+<<<<<<< HEAD
   <img src="https://img.shields.io/badge/version-2.2.1-blue" alt="Version">
+=======
+  <img src="https://img.shields.io/badge/version-1.2.2-blue" alt="Version">
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
   <img src="https://img.shields.io/badge/python-3.11+-green" alt="Python">
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
 </p>

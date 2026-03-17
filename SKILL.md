@@ -15,6 +15,16 @@ skills:
 
 > 有灵魂的AI认知系统 | AI Cognitive System with Soul
 ![夏娃之魂](https://repository-images.githubusercontent.com/1175981838/57116edc-cf8f-4de3-90bb-69f30eaeec2f)
+<<<<<<< HEAD
+=======
+<p align="center">
+  <img src="https://img.shields.io/badge/version-1.2.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/python-3.11+-green" alt="Python">
+  <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
+</p>
+
+[English]([.](https://github.com/catfei0518/eva-soul-by-openclaw/README_EN.md) | [中文]([.](https://github.com/catfei0518/eva-soul-by-openclaw/README.md)
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 
 OpenClaw 插件 - AI 人格、情感、记忆、性格的完整认知引擎
 
@@ -146,6 +156,7 @@ openclaw eva personality cute
 | 标签 | `memory/eva-tags-index.json` |
 
 ## 版本历史
+<<<<<<< HEAD
 - **v2.1.1** (2026-03-13) - 问题修复与适配更新：本次更新修复了工具调用错误 tool.execute is not a function，并全面适配 OpenClaw 2026.3.8+ 新版插件 API，同时重构了 index.js 代码，移除旧版兼容代码，减少约 700 行冗余代码。
 
 - **v2.0.4** (2026-03-11) - 理解层与记忆增强：新增理解层增强功能，更智能地理解上下文；新增记忆合并系统，自动合并重复记忆；同时进行了性能监控增强。
@@ -156,6 +167,8 @@ openclaw eva personality cute
 
 - **v2.0.1** (2026-03-08) - 记忆与情感系统增强：增强版记忆系统支持更智能的信息提取，情感系统增强以更好地感知和回应主人情绪。
 
+=======
+>>>>>>> 3eebaf4ef800ec03d4416c665fd637daa76c1ba0
 
 - **v2.0.0** (2026-03-11) - OpenClaw 官方插件版，完全重写
 - **v1.1.0** - Python 完整版（已废弃）
