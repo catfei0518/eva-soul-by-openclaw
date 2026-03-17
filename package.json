@@ -1,0 +1,10 @@
+{
+  "name": "eva-soul",
+  "version": "2.2.1",
+  "description": "夏娃之魂认知系统",
+  "main": "index.js",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./index.js"]
+  }
+}
