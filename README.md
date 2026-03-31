@@ -3,8 +3,8 @@
 > 有灵魂的AI认知系统 | AI Cognitive System with Soul
 ![夏娃之魂](https://repository-images.githubusercontent.com/1175981838/57116edc-cf8f-4de3-90bb-69f30eaeec2f)
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.2.1-blue" alt="Version">
-  <img src="https://img.shields.io/badge/python-3.11+-green" alt="Python">
+  <img src="https://img.shields.io/badge/version-2.3.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/node-18%2B-green" alt="Node">
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
 </p>
 
@@ -107,7 +107,7 @@ openclaw eva stats       # 查看统计
 
 | 指标 | 数量 |
 |------|------|
-| Tools | 14 |
+| Tools | 15 |
 | Hooks | 7 |
 | 概念 | 27+ |
 | 模式 | 73+ |

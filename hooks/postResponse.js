@@ -4,8 +4,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const { fetchWithRetry } = require('./errorHandler');
 
-const SILICONFLOW_KEY = 'sk-niomirqoomaiylusfestoavpaflrvcmrygsoarocroladwvt';
+const SILICONFLOW_KEY = process.env.SILICONFLOW_API_KEY;
 
 const MEMORY_CONFIG = {
   short: { file: 'short/short.json', days: 7 },
@@ -13,10 +14,11 @@ const MEMORY_CONFIG = {
   long: { file: 'long/long.json', days: 90 }
 };
 
-// 向量生成
+// 向量生成（自动重试）
 async function generateEmbedding(text) {
+  if (!SILICONFLOW_KEY) return null;
   try {
-    const response = await fetch('https://api.siliconflow.cn/v1/embeddings', {
+    const response = await fetchWithRetry('https://api.siliconflow.cn/v1/embeddings', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${SILICONFLOW_KEY}`,
@@ -26,7 +28,10 @@ async function generateEmbedding(text) {
     });
     const data = await response.json();
     return data.data?.[0]?.embedding || null;
-  } catch (e) { return null; }
+  } catch (e) {
+    console.warn('[postResponse] embedding error:', e.message);
+    return null;
+  }
 }
 
 // 保存对话到记忆

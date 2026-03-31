@@ -2,7 +2,7 @@
   "id": "eva-soul",
   "name": "EVA Soul",
   "description": "夏娃之魂认知系统 - AI人格、情感、记忆、性格的完整认知引擎",
-  "version": "2.1.1",
+  "version": "2.3.0",
   "author": "EVA",
   "license": "MIT",
   "repository": {
@@ -19,8 +19,8 @@
       },
       "soulScriptsPath": {
         "type": "string",
-        "default": "~/.openclaw/workspace/skills/eva-soul-integration/eva-soul-github/scripts",
-        "description": "夏娃核心脚本路径"
+        "default": "~/.openclaw/workspace/memory",
+        "description": "夏娃记忆存储路径（已废弃，仅作兼容）"
       },
       "autoEmotion": {
         "type": "boolean",
@@ -50,12 +50,16 @@
         "minimum": 0,
         "maximum": 1,
         "description": "情感敏感度"
+      },
+      "performanceMonitoring": {
+        "type": "boolean",
+        "default": false,
+        "description": "开启性能监控（默认关闭）"
       }
     }
   },
   "uiHints": {
     "memoryPath": { "label": "记忆存储路径", "description": "夏娃记忆文件存放目录" },
-    "soulScriptsPath": { "label": "核心脚本路径", "description": "Python核心脚本目录" },
     "autoEmotion": { "label": "自动情感检测", "description": "自动识别主人情绪" },
     "autoMemory": { "label": "自动记忆", "description": "自动保存重要信息" },
     "autoPersonality": { "label": "自动性格调整", "description": "根据场景调整回复风格" },
@@ -115,11 +119,18 @@
   "tools": [
     "eva_status",
     "eva_emotion",
-    "eva_memory_query",
-    "eva_memory_save",
+    "eva_memory",
     "eva_personality",
-    "eva_decision",
-    "eva_importance"
+    "eva_decide",
+    "eva_importance",
+    "eva_full_stats",
+    "eva_concept",
+    "eva_pattern",
+    "eva_knowledge",
+    "eva_motivation",
+    "eva_values",
+    "eva_sleep",
+    "eva_ask"
   ],
   "cli": {
     "commands": ["eva", "eva-status", "eva-memory", "eva-emotion"]
@@ -128,8 +139,7 @@
     "fileSystem": {
       "read": [
         "memory/**/*.md",
-        "memory/**/*.json",
-        "~/.openclaw/workspace/skills/eva-soul-integration/**"
+        "memory/**/*.json"
       ],
       "write": [
         "memory/**/*.md",

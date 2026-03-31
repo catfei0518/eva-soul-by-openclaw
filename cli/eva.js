@@ -6,8 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const stateFile = path.join(process.env.HOME || '/root', '.openclaw/workspace/memory/eva-soul-state.json');
-const kgFile = path.join(process.env.HOME || '/root', '.openclaw/workspace/memory/eva-knowledge-graph.json');
+const stateFile = path.join(process.env.HOME || '', '.openclaw/workspace/memory/eva-soul-state.json');
+const kgFile = path.join(process.env.HOME || '', '.openclaw/workspace/memory/eva-knowledge-graph.json');
 
 function loadState() {
   try {

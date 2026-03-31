@@ -8,6 +8,10 @@ const path = require('path');
 
 // 导入核心模块
 const lib = require('./lib');
+const { DecisionSystem, MotivationSystem, ValuesSystem, evaluateImportance } = require('./lib/decision/decision');
+const { ConceptSystem, PatternSystem, KnowledgeGraph } = require('./lib/cognition/cognition');
+const { PerformanceMonitor } = require('../hooks/performanceMonitor');
+let perfMonitor = null;
 
 // 插件配置
 let config = lib.getDefaultConfig();
@@ -17,6 +21,12 @@ let state = lib.createState();
 
 // 系统实例
 let memoryStore = null;
+let decisionSystem = null;
+let conceptSystem = null;
+let patternSystem = null;
+let knowledgeGraph = null;
+let motivationSystem = null;
+let valuesSystem = null;
 
 /**
  * 工具执行函数
@@ -103,45 +113,377 @@ async function executeEvaMemory(args) {
   }
 }
 
+/**
+ * 从用户消息和当前状态中提取决策上下文
+ */
+function analyzeDecisionContext(message, emotion, personality, options) {
+  const ctx = {
+    emotion: emotion || 'neutral',
+    personality: personality || 'gentle',
+    message: message || '',
+    availableOptions: options || []
+  };
+
+  // 从消息中提取关键信息
+  if (message) {
+    const msg = message.toLowerCase();
+
+    // 检测消息紧迫程度
+    if (/紧急|马上|十万火急|来不及|快/.test(msg)) {
+      ctx.urgency = 'high';
+    } else if (/不急|慢慢|有空再说/.test(msg)) {
+      ctx.urgency = 'low';
+    } else {
+      ctx.urgency = 'normal';
+    }
+
+    // 检测是否涉及安全/删除操作
+    if (/删除|格式化|清空|危险|撤销/.test(msg)) {
+      ctx.safety = 'critical';
+    }
+
+    // 检测是否是学习/探索类请求
+    if (/怎么|如何|为什么|教我|学习|告诉我/.test(msg)) {
+      ctx.type = 'learning';
+    } else if (/帮我|替我|做|写|生成|创建/.test(msg)) {
+      ctx.type = 'task';
+    } else if (/\?/.test(msg) || /吗|呢/.test(msg)) {
+      ctx.type = 'question';
+    }
+  }
+
+  return ctx;
+}
+
+/**
+ * 生成决策理由文本
+ */
+function generateDecisionReasoning(decision, context) {
+  const reasons = [];
+
+  // 情感理由
+  if (context.emotion === 'sad') {
+    reasons.push(`主人情绪低落(${context.emotion})，需要温柔安慰`);
+  } else if (context.emotion === 'angry') {
+    reasons.push(`主人情绪激动(${context.emotion})，需要冷静安抚`);
+  } else if (context.emotion === 'happy' || context.emotion === 'excited') {
+    reasons.push(`主人心情很好(${context.emotion})，可以更活泼`);
+  } else if (context.emotion === 'tired') {
+    reasons.push(`主人很疲惫(${context.emotion})，回复应简洁温柔`);
+  }
+
+  // 性格匹配
+  if (context.personality === 'cute') {
+    reasons.push(`性格为俏皮型，回复风格活泼可爱`);
+  } else if (context.personality === 'professional') {
+    reasons.push(`性格为专业型，回复风格正式严谨`);
+  } else if (context.personality === 'playful') {
+    reasons.push(`性格为幽默型，回复风格轻松风趣`);
+  } else if (context.personality === 'gentle') {
+    reasons.push(`性格为温柔型，回复风格关怀体贴`);
+  } else if (context.personality === 'tsundere') {
+    reasons.push(`性格为傲娇型，回复风格嘴硬心软`);
+  }
+
+  // 动作建议
+  if (decision.action === 'comfort') {
+    reasons.push('决策：优先安慰和陪伴');
+  } else if (decision.action === 'calm') {
+    reasons.push('决策：优先冷静和安抚');
+  } else if (decision.action === 'celebrate') {
+    reasons.push('决策：与主人共情庆祝');
+  }
+
+  // 安全提醒
+  if (context.safety === 'critical') {
+    reasons.push('⚠️ 安全关键操作，需谨慎确认');
+  }
+
+  return reasons.join('；');
+}
+
 async function executeEvaDecide(args) {
   const { action = 'decide', context, options } = args;
-  
-  if (action === 'decide' && context && options) {
-    // 简单的决策逻辑
-    const scores = options.map(opt => ({
-      option: opt,
-      score: Math.random() * 100
-    }));
-    scores.sort((a, b) => b.score - a.score);
+
+  if (action === 'decide') {
+    if (!options || options.length === 0) {
+      // 无选项时，返回当前状态下的决策建议
+      const ctx = analyzeDecisionContext(
+        context || '',
+        state.currentEmotion,
+        state.personality,
+        []
+      );
+      const decision = decisionSystem.decide(ctx);
+      const reasoning = generateDecisionReasoning(decision, ctx);
+
+      return {
+        action: decision.action,
+        style: decision.style,
+        reasoning,
+        factors: decision.factors,
+        emotion: state.currentEmotion,
+        personality: state.personality,
+        message: '无选项时返回当前状态下的行动建议'
+      };
+    }
+
+    // 有选项时，智能选择最佳选项
+    const ctx = analyzeDecisionContext(
+      context || '',
+      state.currentEmotion,
+      state.personality,
+      options
+    );
+    const decision = decisionSystem.decide(ctx);
+    const reasoning = generateDecisionReasoning(decision, ctx);
+
+    // 对所有选项打分排序
+    const scored = options.map(opt => {
+      let score = 50;
+
+      // 情感匹配加分
+      if (opt.emotionMatch === ctx.emotion) score += 25;
+      if (opt.avoidEmotion === ctx.emotion) score -= 20;
+
+      // 性格匹配加分
+      if (opt.style === ctx.personality) score += 20;
+      if (opt.avoidStyle === ctx.personality) score -= 15;
+
+      // 安全关键操作降权
+      if (ctx.safety === 'critical' && opt.includes('删除')) score -= 30;
+
+      // 紧急情况快速响应加分
+      if (ctx.urgency === 'high' && opt.includes('立即')) score += 15;
+
+      // 消息类型匹配
+      if (ctx.type === 'task' && (opt.includes('执行') || opt.includes('完成'))) score += 10;
+      if (ctx.type === 'learning' && (opt.includes('解释') || opt.includes('教'))) score += 10;
+
+      return { option: opt, score: Math.max(0, Math.min(100, score)) };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+
     return {
-      recommended: scores[0].option,
-      reasoning: '基于当前情境分析',
-      alternatives: scores.slice(1).map(s => s.option)
+      recommended: scored[0].option,
+      confidence: scored[0].score,
+      reasoning,
+      allScores: scored,
+      action: decision.action,
+      style: decision.style,
+      alternatives: scored.slice(1).map(s => ({ option: s.option, score: s.score }))
     };
   }
-  
-  return { error: 'context and options required for decide action' };
+
+  if (action === 'evaluate') {
+    // 评估单个选项
+    if (!context || !options) {
+      return { error: 'context and options required for evaluate action' };
+    }
+    const ctx = analyzeDecisionContext(context, state.currentEmotion, state.personality, []);
+    const decision = decisionSystem.decide(ctx);
+    const reasoning = generateDecisionReasoning(decision, ctx);
+
+    const option = options;
+    let score = 50;
+    if (option.emotionMatch === ctx.emotion) score += 25;
+    if (option.avoidEmotion === ctx.emotion) score -= 20;
+    if (option.style === ctx.personality) score += 20;
+    if (option.avoidStyle === ctx.personality) score -= 15;
+
+    return {
+      option,
+      score: Math.max(0, Math.min(100, score)),
+      reasoning,
+      recommended: score >= 60,
+      emotion: state.currentEmotion,
+      personality: state.personality
+    };
+  }
+
+  return { error: 'Unknown action. Use: decide, evaluate' };
 }
 
 async function executeEvaImportance(args) {
   const { content } = args;
   if (!content) return { error: 'content required' };
-  
-  // 简单的关键词分析
-  const importantKeywords = ['重要', '记住', '关键', '必须', '不要忘记', '纪念日', '生日'];
-  let score = 5;
-  
-  for (const kw of importantKeywords) {
-    if (content.includes(kw)) {
-      score += 2;
-    }
-  }
-  
-  return { importance: Math.min(score, 10), content: content.substring(0, 50) + '...' };
+
+  // 使用增强版重要性评估（规则+缓存+智能fallback）
+  const result = await evaluateImportance(content, {
+    emotion: state.currentEmotion,
+    personality: state.personality
+  });
+
+  return result;
 }
 
 async function executeEvaFullStats() {
   return lib.getStateSummary(state);
+}
+
+// ========== 概念工具 ==========
+
+async function executeEvaConcept(args) {
+  const { action = 'list', text, type, limit = 10 } = args;
+
+  switch (action) {
+    case 'extract':
+      if (!text) return { error: 'text required' };
+      return { extracted: conceptSystem.extractConcepts(text), count: conceptSystem.extractConcepts(text).length };
+    case 'add':
+      if (!text || !type) return { error: 'text and type required' };
+      conceptSystem.addConcept({ type, value: text, importance: 5 });
+      return { success: true };
+    case 'search':
+      if (!text) return { error: 'text required' };
+      return { results: conceptSystem.searchConcepts(text).slice(0, limit) };
+    case 'stats':
+      return conceptSystem.getStats();
+    case 'top':
+      return { top: conceptSystem.getTopConcepts(limit, type || null) };
+    case 'cleanup':
+      return conceptSystem.cleanup();
+    default:
+      return { list: conceptSystem.getTopConcepts(limit) };
+  }
+}
+
+// ========== 模式工具 ==========
+
+async function executeEvaPattern(args) {
+  const { action = 'list', type, limit = 10, messages, days } = args;
+
+  switch (action) {
+    case 'detect':
+      if (!messages) return { error: 'messages required' };
+      return { detected: patternSystem.detectPatterns(messages), count: patternSystem.detectPatterns(messages).length };
+    case 'list':
+      return { patterns: patternSystem.getPatterns(type || null).slice(0, limit) };
+    case 'stats':
+      return patternSystem.getStats();
+    case 'cleanup':
+      return patternSystem.cleanup(days || 30);
+    default:
+      return { patterns: patternSystem.getPatterns(type || null).slice(0, limit) };
+  }
+}
+
+// ========== 知识图谱工具 ==========
+
+async function executeEvaKnowledge(args) {
+  const { action = 'query', nodeId, label, type, from, to, query } = args;
+
+  switch (action) {
+    case 'query':
+      if (!nodeId) return { error: 'nodeId required' };
+      return knowledgeGraph.query(nodeId, args.depth || 1, args.direction || 'both');
+    case 'add_node':
+      if (!nodeId || !label) return { error: 'nodeId and label required' };
+      knowledgeGraph.addNode({ id: nodeId, label, type: type || 'entity', properties: args.properties || {} });
+      return { success: true };
+    case 'add_edge':
+      if (!from || !to) return { error: 'from and to required' };
+      knowledgeGraph.addEdge({ from, to, type: type || 'related', properties: args.properties || {} });
+      return { success: true };
+    case 'search':
+      if (!query) return { error: 'query required' };
+      return { nodes: knowledgeGraph.searchNodes(query, type || null) };
+    case 'stats':
+      return knowledgeGraph.getStats();
+    case 'delete_node':
+      if (!nodeId) return { error: 'nodeId required' };
+      return knowledgeGraph.deleteNode(nodeId);
+    default:
+      return knowledgeGraph.getStats();
+  }
+}
+
+// ========== 动机工具 ==========
+
+async function executeEvaMotivation(args) {
+  const { action = 'get', id, priority, active } = args;
+
+  switch (action) {
+    case 'get':
+      return motivationSystem.getCurrentMotivation({});
+    case 'list':
+      return { motivations: motivationSystem.motivations };
+    case 'update':
+      if (!id) return { error: 'id required' };
+      const updates = {};
+      if (priority !== undefined) updates.priority = priority;
+      if (active !== undefined) updates.active = active;
+      return { updated: motivationSystem.updateMotivation(id, updates) };
+    default:
+      return { current: motivationSystem.getCurrentMotivation({}), all: motivationSystem.motivations };
+  }
+}
+
+// ========== 价值观工具 ==========
+
+async function executeEvaValues(args) {
+  const { action = 'list', description } = args;
+
+  switch (action) {
+    case 'list':
+      return { values: valuesSystem.values };
+    case 'evaluate':
+      if (!description) return { error: 'description required for evaluate' };
+      return valuesSystem.evaluateAction(description);
+    case 'add':
+      if (!description || !args.name) return { error: 'name and description required' };
+      return { added: valuesSystem.addValue({ name: args.name, description, weight: args.weight || 5 }) };
+    default:
+      return { values: valuesSystem.values };
+  }
+}
+
+// ========== 睡眠工具 ==========
+
+async function executeEvaSleep(args) {
+  const { action = 'status' } = args;
+
+  switch (action) {
+    case 'sleep':
+      state = lib.setSleepState(state, true);
+      lib.saveState(state, config.memoryPath);
+      return { success: true, sleeping: true };
+    case 'wake':
+      state = lib.setSleepState(state, false);
+      lib.saveState(state, config.memoryPath);
+      return { success: true, sleeping: false };
+    default:
+      return { isSleeping: state.isSleeping, sleepStartTime: state.sleepStartTime, lastWakeTime: state.lastWakeTime };
+  }
+}
+
+// ========== 主动提问工具 ==========
+
+async function executeEvaAsk(args) {
+  const { action = 'check', question } = args;
+
+  switch (action) {
+    case 'check': {
+      const lastInteraction = state.lastInteraction ? new Date(state.lastInteraction) : null;
+      const idleMinutes = lastInteraction ? Math.floor((Date.now() - lastInteraction.getTime()) / 60000) : 999;
+      const interactionsToday = state.totalInteractions || 0;
+      return {
+        idleMinutes,
+        interactionsToday,
+        suggestion: idleMinutes > 30 ? '主人已经很久没说话了，可以主动问候一下' :
+                   interactionsToday < 3 ? '今天互动不多，可以关心一下主人' : null
+      };
+    }
+    case 'record':
+      if (!question) return { error: 'question required' };
+      state.lastActiveQuestion = question;
+      state.lastActiveQuestionTime = new Date().toISOString();
+      lib.saveState(state, config.memoryPath);
+      return { success: true, question };
+    default:
+      return { lastQuestion: state.lastActiveQuestion, lastTime: state.lastActiveQuestionTime };
+  }
 }
 
 /**
@@ -158,6 +500,24 @@ function register(api) {
     
     // 初始化记忆存储
     memoryStore = new lib.MemoryStore(config.memoryPath);
+
+    // 初始化决策系统
+    decisionSystem = new DecisionSystem();
+
+    // 初始化认知系统
+    conceptSystem = new ConceptSystem(config.memoryPath);
+    patternSystem = new PatternSystem(config.memoryPath);
+    knowledgeGraph = new KnowledgeGraph(config.memoryPath);
+
+    // 初始化动机和价值观系统
+    motivationSystem = new MotivationSystem(config.memoryPath);
+    valuesSystem = new ValuesSystem(config.memoryPath);
+
+    // 性能监控（按配置可选开启）
+    if (config.performanceMonitoring) {
+      perfMonitor = new PerformanceMonitor();
+      console.log('   📊 Performance monitoring enabled');
+    }
     
     console.log(`   Session: ${state.sessionCount}`);
     console.log(`   Emotion: ${state.currentEmotion}`);
@@ -218,15 +578,14 @@ function register(api) {
       {
         name: 'eva_decide',
         label: 'EVA Decide',
-        description: '夏娃决策建议',
+        description: '夏娃决策建议 - 基于当前情感和性格，智能选择最佳选项',
         parameters: {
           type: 'object',
           properties: {
-            action: { type: 'string', enum: ['decide'] },
-            context: { type: 'string' },
-            options: { type: 'array', items: { type: 'string' } }
-          },
-          required: ['context', 'options']
+            action: { type: 'string', enum: ['decide', 'evaluate'], description: 'decide: 选择最佳选项 / evaluate: 评估单个选项' },
+            context: { type: 'string', description: '当前情境描述（用户消息）' },
+            options: { type: 'string', description: 'decide时为选项数组；evaluate时为要评估的单个选项' }
+          }
         },
         execute: executeEvaDecide
       },
@@ -249,6 +608,113 @@ function register(api) {
         description: '夏娃完整统计',
         parameters: { type: 'object', properties: {}, required: [] },
         execute: executeEvaFullStats
+      },
+      {
+        name: 'eva_concept',
+        label: 'EVA Concept',
+        description: '概念操作 (extract/search/add/stats/top)',
+        parameters: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['extract', 'add', 'search', 'stats', 'top', 'cleanup', 'list'] },
+            text: { type: 'string', description: '文本内容' },
+            type: { type: 'string', description: '概念类型' },
+            limit: { type: 'integer', description: '返回数量限制', default: 10 }
+          }
+        },
+        execute: executeEvaConcept
+      },
+      {
+        name: 'eva_pattern',
+        label: 'EVA Pattern',
+        description: '模式识别 (detect/list/stats/cleanup)',
+        parameters: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['detect', 'list', 'stats', 'cleanup'] },
+            type: { type: 'string', description: '模式类型过滤' },
+            messages: { type: 'array', description: '消息数组，用于检测模式' },
+            days: { type: 'integer', description: '清理天数' },
+            limit: { type: 'integer', description: '返回数量限制', default: 10 }
+          }
+        },
+        execute: executeEvaPattern
+      },
+      {
+        name: 'eva_knowledge',
+        label: 'EVA Knowledge',
+        description: '知识图谱 (query/add_node/add_edge/search/stats)',
+        parameters: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['query', 'add_node', 'add_edge', 'search', 'stats', 'delete_node'] },
+            nodeId: { type: 'string', description: '节点ID' },
+            label: { type: 'string', description: '节点标签' },
+            type: { type: 'string', description: '节点/边的类型' },
+            from: { type: 'string', description: '起始节点ID' },
+            to: { type: 'string', description: '目标节点ID' },
+            query: { type: 'string', description: '搜索关键词' },
+            depth: { type: 'integer', description: '查询深度', default: 1 },
+            direction: { type: 'string', description: '查询方向: both/in/out', default: 'both' },
+            properties: { type: 'object', description: '附加属性' }
+          }
+        },
+        execute: executeEvaKnowledge
+      },
+      {
+        name: 'eva_motivation',
+        label: 'EVA Motivation',
+        description: '动机操作 (get/list/update)',
+        parameters: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['get', 'list', 'update'] },
+            id: { type: 'string', description: '动机ID' },
+            priority: { type: 'integer', description: '优先级 (1-10)' },
+            active: { type: 'boolean', description: '是否激活' }
+          }
+        },
+        execute: executeEvaMotivation
+      },
+      {
+        name: 'eva_values',
+        label: 'EVA Values',
+        description: '价值观操作 (list/evaluate/add)',
+        parameters: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['list', 'evaluate', 'add'] },
+            description: { type: 'string', description: '要评估的行动描述' },
+            name: { type: 'string', description: '价值观名称（添加时）' },
+            weight: { type: 'integer', description: '权重 (1-10)' }
+          }
+        },
+        execute: executeEvaValues
+      },
+      {
+        name: 'eva_sleep',
+        label: 'EVA Sleep',
+        description: '睡眠/唤醒 (sleep/wake/status)',
+        parameters: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['sleep', 'wake', 'status'] }
+          }
+        },
+        execute: executeEvaSleep
+      },
+      {
+        name: 'eva_ask',
+        label: 'EVA Ask',
+        description: '主动提问 (check/record)',
+        parameters: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['check', 'record'] },
+            question: { type: 'string', description: '记录的问题' }
+          }
+        },
+        execute: executeEvaAsk
       }
     ];
     
@@ -273,32 +739,9 @@ function register(api) {
 }
 
 function registerHooks(api) {
-  // Session start hook
-  api.registerHook('session-start', async (ctx) => {
-    state = lib.incrementSession(state);
-    lib.saveState(state, config.memoryPath);
-    console.log(`[eva-soul] Session ${state.sessionCount} started`);
-  });
-  
-  // Pre-response hook - 注入夏娃人格
-  api.registerHook('pre-response', async (ctx) => {
-    // 这里可以注入夏娃的人格特征到系统提示
-    return {};
-  });
-  
-  // Post-response hook - 自动记忆和情感更新
-  api.registerHook('post-response', async (ctx) => {
-    try {
-      // 记录交互
-      state = lib.recordInteraction(state, ctx.response || '');
-      lib.saveState(state, config.memoryPath);
-    } catch (e) {
-      console.error('[eva-soul] Post-response hook error:', e);
-    }
-    return {};
-  });
-  
-  console.log('   ✅ Hooks registered');
+  // 注：Session-start、pre-response、post-response 钩子由 openclaw.plugin.json 配置指向独立的 hook 文件
+  // 此处仅注册配置中未指向的额外钩子（未来扩展用）
+  console.log('   ✅ Hooks registered via plugin.json');
 }
 
 module.exports = { register };
