@@ -37,7 +37,7 @@ async function fetchWithRetry(url, options = {}, config = RETRY_CONFIG) {
 
     } catch (error) {
       lastError = error;
-      logger.hookWarn(`API请求失败 (尝试 ${attempt}/${config.maxRetries}): ${error.message}`, 'errorHandler');
+      logger.hookWarn(logger.t('errorHandler.apiRetry', { attempt, max: config.maxRetries, error: error.message }), 'errorHandler');
 
       if (attempt < config.maxRetries) {
         await sleep(config.retryDelay * attempt);
@@ -68,7 +68,7 @@ function logError(context, error, details = {}) {
     ...details
   };
 
-  logger.error(`EVA错误: ${errorLog.context}`, 'errorHandler', errorLog);
+  logger.error(logger.t('errorHandler.evaError') + `: ${errorLog.context}`, 'errorHandler', errorLog);
 
   // 可以扩展为保存到文件
   return errorLog;
@@ -93,13 +93,13 @@ async function withFallback(primaryFn, fallbackFn, context = 'operation') {
   try {
     return await primaryFn();
   } catch (error) {
-    logger.hookWarn(`主方案失败，使用备用方案: ${context}`, 'errorHandler');
+    logger.hookWarn(logger.t('errorHandler.primaryFailed') + `: ${context}`, 'errorHandler');
     logError(context + '_fallback', error);
 
     try {
       return await fallbackFn();
     } catch (fallbackError) {
-      logger.fail(`备用方案也失败: ${context}`, 'errorHandler', fallbackError);
+      logger.fail(logger.t('errorHandler.fallbackFailed') + `: ${context}`, 'errorHandler', fallbackError);
       logError(context + '_fallback_failed', fallbackError);
       return null;
     }

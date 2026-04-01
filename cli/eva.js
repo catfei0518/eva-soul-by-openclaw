@@ -31,24 +31,25 @@ function loadKG() {
 const cmd = process.argv[2];
 
 switch (cmd) {
-  case 'status':
+  case 'status': {
     const state = loadState();
     if (state) {
-      logger.section('🎀 EVA 状态');
-      logger.item(`情感: ${state.currentEmotion}`);
-      logger.item(`性格: ${state.personality}`);
-      logger.item(`等级: ${state.level} (经验: ${state.experience}/${state.expNeeded})`);
-      logger.item(`会话: ${state.sessionCount}`);
-      logger.item(`概念: ${state.concepts?.length || 0}`);
-      logger.item(`记忆: ${state.conceptStats?.total || 0}`);
-      logger.item(`模式: ${state.patternStats?.total || 0}`);
-      logger.item(`动机: ${state.motivations?.length || 0}`);
-      logger.item(`梦想: ${state.dreams?.length || 0}`);
-      logger.item(`价值观: ${state.values?.length || 0}`);
+      logger.section('🎀 ' + logger.t('cli.status.title'));
+      logger.item(`${logger.t('cli.status.emotion')}: ${state.currentEmotion}`);
+      logger.item(`${logger.t('cli.status.personality')}: ${state.personality}`);
+      logger.item(`${logger.t('cli.status.level')}: ${state.level} (${logger.t('cli.status.exp')}: ${state.experience}/${state.expNeeded})`);
+      logger.item(`${logger.t('cli.status.session')}: ${state.sessionCount}`);
+      logger.item(`${logger.t('cli.status.concepts')}: ${state.concepts?.length || 0}`);
+      logger.item(`${logger.t('cli.status.memories')}: ${state.conceptStats?.total || 0}`);
+      logger.item(`${logger.t('cli.status.patterns')}: ${state.patternStats?.total || 0}`);
+      logger.item(`${logger.t('cli.status.motivations')}: ${state.motivations?.length || 0}`);
+      logger.item(`${logger.t('cli.status.dreams')}: ${state.dreams?.length || 0}`);
+      logger.item(`${logger.t('cli.status.values')}: ${state.values?.length || 0}`);
     }
     break;
+  }
 
-  case 'emotion':
+  case 'emotion': {
     const emotionArg = process.argv[3];
     if (emotionArg) {
       const s = loadState();
@@ -56,15 +57,16 @@ switch (cmd) {
         s.currentEmotion = emotionArg;
         s.lastUpdate = new Date().toISOString();
         fs.writeFileSync(stateFile, JSON.stringify(s, null, 2));
-        logger.success(`情感设置为: ${emotionArg}`, 'cli');
+        logger.success(logger.t('cli.emotion.set', { emotion: emotionArg }), 'cli');
       }
     } else {
-      logger.info(`当前情感: ${loadState()?.currentEmotion || 'unknown'}`, 'cli');
-      logger.info('用法: eva emotion [happy|sad|neutral|...]', 'cli');
+      logger.info(`${logger.t('cli.emotion.current')}: ${loadState()?.currentEmotion || 'unknown'}`, 'cli');
+      logger.info(logger.t('cli.emotion.usage'), 'cli');
     }
     break;
+  }
 
-  case 'concept':
+  case 'concept': {
     const conceptArg = process.argv[3];
     if (conceptArg) {
       const s = loadState();
@@ -78,35 +80,37 @@ switch (cmd) {
         });
         s.lastUpdate = new Date().toISOString();
         fs.writeFileSync(stateFile, JSON.stringify(s, null, 2));
-        logger.success(`添加概念: ${conceptArg}`, 'cli');
+        logger.success(logger.t('cli.concept.added', { value: conceptArg }), 'cli');
       }
     } else {
       const s = loadState();
-      logger.info('概念列表:', 'cli');
+      logger.info(logger.t('cli.concept.list') + ':', 'cli');
       (s?.concepts || []).forEach((c, i) => {
         logger.item(`${i+1}. ${c.value} (${c.type})`, 'cli');
       });
     }
     break;
+  }
 
-  case 'kg':
+  case 'kg': {
     const kg = loadKG();
     if (kg) {
-      logger.section('知识图谱');
-      logger.item(`节点: ${kg.nodes?.length || 0}`);
-      logger.item(`边: ${kg.edges?.length || 0}`);
-      logger.info('节点列表:', 'cli');
+      logger.section('🎀 ' + logger.t('cli.kg.title'));
+      logger.item(`${logger.t('cli.kg.nodes')}: ${kg.nodes?.length || 0}`);
+      logger.item(`${logger.t('cli.kg.edges')}: ${kg.edges?.length || 0}`);
+      logger.info(logger.t('cli.kg.nodeList') + ':', 'cli');
       (kg.nodes || []).forEach(n => {
         logger.item(`${n.label} (${n.type})`, 'cli');
       });
     }
     break;
+  }
 
   default:
-    logger.section('🎀 EVA CLI - 夏娃之魂命令行工具');
-    logger.info('用法:', 'cli');
-    logger.info('  eva status        # 查看状态', 'cli');
-    logger.info('  eva emotion [值]  # 查看/设置情感', 'cli');
-    logger.info('  eva concept [值]  # 查看/添加概念', 'cli');
-    logger.info('  eva kg            # 查看知识图谱', 'cli');
+    logger.section('🎀 EVA CLI');
+    logger.info(logger.t('cli.help.title'), 'cli');
+    logger.info('  ' + logger.t('cli.help.status'), 'cli');
+    logger.info('  ' + logger.t('cli.help.emotion'), 'cli');
+    logger.info('  ' + logger.t('cli.help.concept'), 'cli');
+    logger.info('  ' + logger.t('cli.help.kg'), 'cli');
 }

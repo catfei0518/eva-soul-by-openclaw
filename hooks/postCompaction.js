@@ -7,7 +7,7 @@ const path = require('path');
 const logger = require('./logger');
 
 async function postCompactionHook(ctx, plugin) {
-  logger.hook('Post-compaction anchor restore...', 'postCompaction');
+  logger.hook(logger.t('hooks.postCompaction.restoring'), 'postCompaction');
 
   // 读取锚点文件
   const anchorFile = path.join(plugin.config.memoryPath, 'eva-compaction-anchor.json');
@@ -24,13 +24,13 @@ async function postCompactionHook(ctx, plugin) {
         plugin.state.personality = anchorData.personality;
       }
 
-      logger.hook('State restored from anchor', 'postCompaction');
+      logger.hook(logger.t('hooks.postCompaction.restored'), 'postCompaction');
 
       // 删除锚点文件
       fs.unlinkSync(anchorFile);
     }
   } catch (e) {
-    logger.hookWarn(`Failed to restore anchor: ${e.message}`, 'postCompaction');
+    logger.hookWarn(e.message, 'postCompaction');
   }
 
   // 注入上下文锚点提示

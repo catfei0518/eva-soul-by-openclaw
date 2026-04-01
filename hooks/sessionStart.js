@@ -11,7 +11,7 @@ const path = require('path');
 const logger = require('./logger');
 
 async function sessionStartHook(ctx, plugin) {
-  logger.hook('Session starting...', 'sessionStart');
+  logger.hook(logger.t('hooks.sessionStart.registering'), 'sessionStart');
 
   // 对话计数 +1 (每次新 session 会话)
   const chatsFile = path.join(process.env.HOME || '/root', '.openclaw/workspace/chats.txt');
@@ -22,9 +22,9 @@ async function sessionStartHook(ctx, plugin) {
     }
     chats += 1;
     fs.writeFileSync(chatsFile, chats.toString(), 'utf8');
-    logger.hook(`对话计数 +1，当前: ${chats}`, 'sessionStart');
+    logger.hook(logger.t('hooks.sessionStart.chats', { count: chats }), 'sessionStart');
   } catch (e) {
-    logger.hookWarn(`对话计数失败: ${e.message}`, 'sessionStart');
+    logger.hookWarn(e.message, 'sessionStart');
   }
 
   // 记录会话开始时间
@@ -36,9 +36,9 @@ async function sessionStartHook(ctx, plugin) {
     try {
       const content = fs.readFileSync(userPath, 'utf8');
       plugin.state.ownerInfo = parseUserInfo(content);
-      logger.hook(`Owner info loaded: ${plugin.state.ownerInfo?.name || 'Unknown'}`, 'sessionStart');
+      logger.hook(logger.t('hooks.sessionStart.ownerLoaded', { name: plugin.state.ownerInfo?.name || 'Unknown' }), 'sessionStart');
     } catch (e) {
-      logger.hookWarn(`Failed to load owner info`, 'sessionStart');
+      logger.hookWarn(logger.t('hooks.sessionStart.ownerLoadFailed'), 'sessionStart');
     }
   }
 
@@ -53,7 +53,7 @@ async function sessionStartHook(ctx, plugin) {
       plugin.state.totalInteractions = state.totalInteractions || 0;
       plugin.state.isSleeping = state.isSleeping || false;
       logger.hook(
-        `State restored — emotion: ${plugin.state.currentEmotion}, personality: ${plugin.state.personality}`,
+        logger.t('hooks.sessionStart.stateRestored', { emotion: plugin.state.currentEmotion, personality: plugin.state.personality }),
         'sessionStart'
       );
     } catch (e) {
@@ -64,9 +64,9 @@ async function sessionStartHook(ctx, plugin) {
   // 立即保存（确保状态写入磁盘，后续 hooks 可读）
   try {
     await plugin.saveState();
-    logger.hook('State saved after session start', 'sessionStart');
+    logger.hook(logger.t('hooks.sessionStart.stateSaved'), 'sessionStart');
   } catch (e) {
-    logger.hookWarn(`Failed to save state: ${e.message}`, 'sessionStart');
+    logger.hookWarn(e.message, 'sessionStart');
   }
 
   return {
@@ -80,9 +80,6 @@ function parseUserInfo(content) {
   if (!content) return info;
   const lines = content.split('\n');
   for (const line of lines) {
-    // 支持两种格式：
-    // - **Name:** value
-    // - What to call them: value
     const match = line.match(/^- \*\*([^:]+):\*\* (.+)$/) || line.match(/^([^:]+): (.+)$/);
     if (match && match[1] && match[2]) {
       try {

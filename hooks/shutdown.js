@@ -5,7 +5,7 @@
 const logger = require('./logger');
 
 async function shutdownHook(ctx, plugin) {
-  logger.hook('Shutdown save...', 'shutdown');
+  logger.hook(logger.t('hooks.shutdown.saving'), 'shutdown');
 
   // 更新最终状态
   plugin.state.lastShutdown = new Date().toISOString();
@@ -14,9 +14,9 @@ async function shutdownHook(ctx, plugin) {
   // 保存状态
   try {
     await plugin.saveState();
-    logger.hook('State saved, session ended', 'shutdown');
+    logger.hook(logger.t('hooks.shutdown.saved'), 'shutdown');
   } catch (e) {
-    logger.hookWarn(`Failed to save state: ${e.message}`, 'shutdown');
+    logger.hookWarn(e.message, 'shutdown');
   }
 
   return ctx;

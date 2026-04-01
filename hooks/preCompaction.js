@@ -7,7 +7,7 @@ const path = require('path');
 const logger = require('./logger');
 
 async function preCompactionHook(ctx, plugin) {
-  logger.hook('Pre-compaction state save...', 'preCompaction');
+  logger.hook(logger.t('hooks.preCompaction.saving'), 'preCompaction');
 
   // 保存当前状态
   const stateData = {
@@ -23,9 +23,9 @@ async function preCompactionHook(ctx, plugin) {
 
   try {
     fs.writeFileSync(anchorFile, JSON.stringify(stateData, null, 2));
-    logger.hook('State saved for compaction', 'preCompaction');
+    logger.hook(logger.t('hooks.preCompaction.saved'), 'preCompaction');
   } catch (e) {
-    logger.hookWarn(`Failed to save state: ${e.message}`, 'preCompaction');
+    logger.hookWarn(logger.t('hooks.preCompaction.saveFailed', { error: e.message }), 'preCompaction');
   }
 
   return ctx;

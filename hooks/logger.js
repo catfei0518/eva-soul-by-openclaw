@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const i18n = require('../i18n');
 
 // 日志级别
 const LEVELS = {
@@ -55,8 +56,27 @@ let _config = {
  * 配置 Logger
  * @param {object} options
  */
+/**
+ * 设置当前语言
+ * @param {string} locale - 语言代码：zh / en / ja / zh-TW
+ */
+function setLocale(locale) {
+  _config.locale = locale;
+}
+
+/**
+ * 获取当前语言
+ */
+function getLocale() {
+  return _config.locale || 'zh';
+}
+
+/**
+ * 配置 Logger
+ */
 function configure(options = {}) {
   _config = { ..._config, ...options };
+  if (options.locale) _config.locale = options.locale;
 }
 
 /**
@@ -278,11 +298,24 @@ function fromConsole(context = 'APP') {
   };
 }
 
+/**
+ * i18n 翻译快捷方法
+ * 用法：logger.t('hooks.sessionStart.registering')
+ * 用法：logger.t('hooks.preResponse.memories', { n: 5 })
+ * @param {string} key 翻译键
+ * @param {object} params 插值参数
+ * @returns {string}
+ */
+function t(key, params = {}) {
+  return i18n.t(getLocale(), key, params);
+}
+
 module.exports = {
   configure,
   debug, info, warn, error,
-  hook, hookError, section,
+  hook, hookWarn, hookError, section,
   success, fail, item, itemOk, itemFail,
   fromConsole,
+  setLocale, getLocale, t,
   LEVELS
 };

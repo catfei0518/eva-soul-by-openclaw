@@ -585,6 +585,27 @@ async function executeEvaFeedback(args) {
  * 插件注册函数
  */
 function register(api) {
+  // 1. 语言检测 + 设置
+  const userCfg = lib.getUserConfig() || {};
+  const detected = (function () {
+    // 优先级：plugin 配置 > 用户时区 > 系统 locale
+    if (api?.config?.locale) {
+      const loc = api.config.locale;
+      if (['zh', 'en', 'ja', 'zh-TW'].includes(loc)) return loc;
+    }
+    if (userCfg.timezone) {
+      const tz = userCfg.timezone;
+      if (tz.includes('TW') || tz.includes('HK')) return 'zh-TW';
+      if (tz.includes('Japan')) return 'ja';
+    }
+    const sys = (process.env.LANG || process.env.LC_ALL || '').toLowerCase();
+    if (sys.includes('zh_tw') || sys.includes('zh-hk')) return 'zh-TW';
+    if (sys.includes('ja')) return 'ja';
+    if (sys.includes('en')) return 'en';
+    return 'zh';
+  })();
+  logger.setLocale(detected);
+
   logger.section('🎀 EVA Soul Plugin registering...');
 
   try {

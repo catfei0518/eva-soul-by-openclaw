@@ -33,7 +33,7 @@ async function preToolCallHook(ctx, plugin) {
 
   // 检查危险工具
   if (dangerousTools.includes(toolName.toLowerCase())) {
-    logger.hook(`Tool call detected: ${toolName}`, 'preToolCall');
+    logger.hook(logger.t('hooks.preToolCall.toolDetected', { tool: toolName }), 'preToolCall');
   }
 
   return ctx;
