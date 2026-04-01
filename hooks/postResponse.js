@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { fetchWithRetry } = require('./errorHandler');
+const logger = require('./logger');
 
 const SILICONFLOW_KEY = process.env.SILICONFLOW_API_KEY;
 
@@ -29,7 +30,7 @@ async function generateEmbedding(text) {
     const data = await response.json();
     return data.data?.[0]?.embedding || null;
   } catch (e) {
-    console.warn('[postResponse] embedding error:', e.message);
+    logger.hookWarn(`Embedding error: ${e.message}`, 'postResponse');
     return null;
   }
 }
@@ -57,38 +58,40 @@ async function saveConversationToStore(memoryPath, userMsg, assistantMsg) {
     const rawDir = path.join(storePath, 'raw');
     const vecDir = path.join(storePath, 'vectors');
     [storePath, rawDir, vecDir].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
-    
+
     const id = `conv_${Date.now()}`;
     const messages = [
       { role: 'user', content: userMsg },
       { role: 'assistant', content: assistantMsg }
     ];
-    
+
     // 保存原始
     fs.writeFileSync(path.join(rawDir, `${id}.json`), JSON.stringify({ id, messages }, null, 2));
-    
+
     // 生成向量
     const text = messages.map(m => `${m.role}: ${m.content}`).join('\n');
     const embedding = await generateEmbedding(text);
     if (embedding) {
       fs.writeFileSync(path.join(vecDir, `${id}.json`), JSON.stringify({ id, embedding, text: text.substring(0, 500) }, null, 2));
     }
-  } catch (e) { console.error('对话存储失败:', e.message); }
+  } catch (e) {
+    logger.hookWarn(`对话存储失败: ${e.message}`, 'postResponse');
+  }
 }
 
 async function postResponseHook(ctx, plugin) {
   const userMessage = ctx.userMessage || '';
   const assistantMessage = ctx.assistantMessage || '';
   if (!userMessage) return ctx;
-  
+
   const memoryPath = plugin.config?.memoryPath || path.join(process.env.HOME || '/root', '.openclaw/workspace/memory');
-  
+
   // 保存短期记忆
   await saveDialogueToShortTerm(memoryPath, userMessage, assistantMessage);
-  
+
   // 保存完整对话到向量库
   await saveConversationToStore(memoryPath, userMessage, assistantMessage);
-  
+
   return ctx;
 }
 

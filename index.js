@@ -1,5 +1,5 @@
 /**
- * EVA Soul Plugin - OpenClaw 官方插件 (v2.1.0)
+ * EVA Soul Plugin - OpenClaw 官方插件 (v2.3.0)
  * 兼容 OpenClaw 2026.3.8+ 新版 API
  */
 
@@ -10,13 +10,15 @@ const path = require('path');
 const lib = require('./lib');
 const { DecisionSystem, MotivationSystem, ValuesSystem, evaluateImportance } = require('./lib/decision/decision');
 const { ConceptSystem, PatternSystem, KnowledgeGraph } = require('./lib/cognition/cognition');
-const { PerformanceMonitor } = require('../hooks/performanceMonitor');
+const { PerformanceMonitor } = require('./hooks/performanceMonitor');
+const logger = require('./hooks/logger');
+
 let perfMonitor = null;
 
 // 插件配置
 let config = lib.getDefaultConfig();
 
-// 插件状态
+// 插件状态（与 OpenClaw plugin.state 保持同步）
 let state = lib.createState();
 
 // 系统实例
@@ -490,14 +492,20 @@ async function executeEvaAsk(args) {
  * 插件注册函数
  */
 function register(api) {
-  console.log('🎀 EVA Soul Plugin registering...');
-  
+  logger.section('🎀 EVA Soul Plugin registering...');
+
   try {
-    // 初始化状态
+    // 初始化状态（与 api.state 保持同步，避免 sessionStart 修改后丢失）
     const loadedState = lib.loadState(config.memoryPath);
     state = loadedState || lib.createState();
+
+    // 同步到 OpenClaw plugin.state，后续 sessionStart 等 hook 修改 plugin.state 即同步到本地 state
+    if (api && api.state) {
+      Object.assign(api.state, state);
+    }
+
     lib.saveState(state, config.memoryPath);
-    
+
     // 初始化记忆存储
     memoryStore = new lib.MemoryStore(config.memoryPath);
 
@@ -516,12 +524,12 @@ function register(api) {
     // 性能监控（按配置可选开启）
     if (config.performanceMonitoring) {
       perfMonitor = new PerformanceMonitor();
-      console.log('   📊 Performance monitoring enabled');
+      logger.item('Performance monitoring enabled');
     }
-    
-    console.log(`   Session: ${state.sessionCount}`);
-    console.log(`   Emotion: ${state.currentEmotion}`);
-    console.log(`   Personality: ${state.personality}`);
+
+    logger.item(`Session: ${state.sessionCount}`);
+    logger.item(`Emotion: ${state.currentEmotion}`);
+    logger.item(`Personality: ${state.personality}`);
     
     // 注册工具 - 使用新版 API
     const tools = [
@@ -721,27 +729,58 @@ function register(api) {
     for (const tool of tools) {
       try {
         api.registerTool(tool);
-        console.log(`   ✅ Registered: ${tool.name}`);
+        logger.itemOk(`Registered: ${tool.name}`);
       } catch (err) {
-        console.log(`   ❌ Failed: ${tool.name} - ${err.message}`);
+        logger.itemFail(`Registered: ${tool.name}`, 'register', err);
       }
     }
-    
+
     // 注册 Hooks
     registerHooks(api);
-    
-    console.log('🎀 EVA Soul Plugin fully registered');
-    console.log(`   Total Tools: ${tools.length}`);
-    
+
+    logger.success(`EVA Soul Plugin fully registered (${tools.length} tools)`);
+
   } catch (err) {
-    console.error('❌ EVA Soul Plugin registration failed:', err);
+    logger.fail('EVA Soul Plugin registration failed', 'register', err);
   }
 }
 
 function registerHooks(api) {
   // 注：Session-start、pre-response、post-response 钩子由 openclaw.plugin.json 配置指向独立的 hook 文件
   // 此处仅注册配置中未指向的额外钩子（未来扩展用）
-  console.log('   ✅ Hooks registered via plugin.json');
+  logger.itemOk('Hooks registered via plugin.json');
 }
 
-module.exports = { register };
+/**
+ * 获取当前共享状态（供 hooks 使用）
+ * sessionStart/preResponse 等 hook 可通过此函数获取/修改状态
+ */
+function getSharedState() {
+  return state;
+}
+
+/**
+ * 从共享状态同步到磁盘
+ * 在 plugin.state 变更后调用，确保变更持久化
+ */
+function syncState() {
+  if (state) {
+    lib.saveState(state, config.memoryPath);
+  }
+}
+
+/**
+ * 重新从磁盘加载状态（用于 sessionStart 后同步最新状态）
+ */
+function reloadState() {
+  const loaded = lib.loadState(config.memoryPath);
+  if (loaded) {
+    // 保留当前 sessionCount 等增量字段（不因重新加载而丢失）
+    const sessionCount = state.sessionCount;
+    state = loaded;
+    state.sessionCount = sessionCount;
+  }
+  return state;
+}
+
+module.exports = { register, getSharedState, syncState, reloadState };

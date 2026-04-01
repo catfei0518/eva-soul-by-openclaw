@@ -4,17 +4,18 @@
 
 const fs = require('fs');
 const path = require('path');
+const logger = require('./logger');
 
 async function postCompactionHook(ctx, plugin) {
-  console.log('🎀 EVA: Post-compaction anchor restore...');
-  
+  logger.hook('Post-compaction anchor restore...', 'postCompaction');
+
   // 读取锚点文件
   const anchorFile = path.join(plugin.config.memoryPath, 'eva-compaction-anchor.json');
-  
+
   try {
     if (fs.existsSync(anchorFile)) {
       const anchorData = JSON.parse(fs.readFileSync(anchorFile, 'utf8'));
-      
+
       // 恢复状态
       if (anchorData.currentEmotion) {
         plugin.state.currentEmotion = anchorData.currentEmotion;
@@ -22,23 +23,23 @@ async function postCompactionHook(ctx, plugin) {
       if (anchorData.personality) {
         plugin.state.personality = anchorData.personality;
       }
-      
-      console.log('🎀 EVA: State restored from anchor');
-      
+
+      logger.hook('State restored from anchor', 'postCompaction');
+
       // 删除锚点文件
       fs.unlinkSync(anchorFile);
     }
   } catch (e) {
-    console.warn('⚠️ EVA: Failed to restore anchor:', e.message);
+    logger.hookWarn(`Failed to restore anchor: ${e.message}`, 'postCompaction');
   }
-  
+
   // 注入上下文锚点提示
   const anchorPrompt = buildAnchorPrompt(plugin);
-  
+
   return {
     ...ctx,
-    systemPrompt: ctx.systemPrompt 
-      ? ctx.systemPrompt + '\n\n' + anchorPrompt 
+    systemPrompt: ctx.systemPrompt
+      ? ctx.systemPrompt + '\n\n' + anchorPrompt
       : anchorPrompt
   };
 }
@@ -46,7 +47,7 @@ async function postCompactionHook(ctx, plugin) {
 function buildAnchorPrompt(plugin) {
   const emotion = plugin.state.currentEmotion || 'neutral';
   const personality = plugin.state.personality || 'gentle';
-  
+
   return `## 📌 上下文锚点
 
 上次会话信息：

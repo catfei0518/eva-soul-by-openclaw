@@ -2,6 +2,8 @@
  * 性能监控 - 记录系统运行指标
  */
 
+const logger = require('./logger');
+
 class PerformanceMonitor {
   constructor() {
     this.stats = {
@@ -111,26 +113,23 @@ class PerformanceMonitor {
   // 打印报告
   printReport() {
     const report = this.getReport();
-    
-    console.log('📊 性能报告');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('⏱️  运行时间: ' + report.uptime);
-    console.log('');
-    console.log('📡 API调用');
-    console.log('   调用次数: ' + report.api.calls);
-    console.log('   成功: ' + report.api.success + ' (' + report.api.successRate + ')');
-    console.log('   失败: ' + report.api.failures);
-    console.log('   平均响应: ' + report.api.avgResponseTime);
-    console.log('');
-    console.log('💾 缓存');
-    console.log('   命中: ' + report.cache.hits);
-    console.log('   未命中: ' + report.cache.misses);
-    console.log('   命中率: ' + report.cache.hitRate);
-    console.log('');
-    console.log('🧠 内存');
-    console.log('   堆: ' + report.memory.heap);
-    console.log('   RSS: ' + report.memory.rss);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    logger.section('📊 性能报告');
+    logger.info(`⏱️  运行时间: ${report.uptime}`, 'perf');
+    logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'perf');
+    logger.info('📡 API调用', 'perf');
+    logger.item(`调用次数: ${report.api.calls}`);
+    logger.item(`成功: ${report.api.success} (${report.api.successRate})`);
+    logger.item(`失败: ${report.api.failures}`);
+    logger.item(`平均响应: ${report.api.avgResponseTime}`);
+    logger.info('💾 缓存', 'perf');
+    logger.item(`命中: ${report.cache.hits}`);
+    logger.item(`未命中: ${report.cache.misses}`);
+    logger.item(`命中率: ${report.cache.hitRate}`);
+    logger.info('🧠 内存', 'perf');
+    logger.item(`堆: ${report.memory.heap}`);
+    logger.item(`RSS: ${report.memory.rss}`);
+    logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'perf');
   }
   
   // 重置统计

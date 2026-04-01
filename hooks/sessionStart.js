@@ -1,14 +1,19 @@
 /**
  * Session Start Hook - 会话开始时初始化夏娃状态
+ * 关键职责：
+ *   1. 加载主人信息
+ *   2. 恢复上次情感/性格状态（持久化保证）
+ *   3. 对话计数 +1
  */
 
 const fs = require('fs');
 const path = require('path');
+const logger = require('./logger');
 
 async function sessionStartHook(ctx, plugin) {
-  console.log('🎀 EVA: Session starting...');
-  
-  // 对话计数 +1 (每次新session会话)
+  logger.hook('Session starting...', 'sessionStart');
+
+  // 对话计数 +1 (每次新 session 会话)
   const chatsFile = path.join(process.env.HOME || '/root', '.openclaw/workspace/chats.txt');
   try {
     let chats = 0;
@@ -17,40 +22,53 @@ async function sessionStartHook(ctx, plugin) {
     }
     chats += 1;
     fs.writeFileSync(chatsFile, chats.toString(), 'utf8');
-    console.log('🎀 EVA: 对话计数 +1, 当前:', chats);
+    logger.hook(`对话计数 +1，当前: ${chats}`, 'sessionStart');
   } catch (e) {
-    console.warn('⚠️ EVA: 对话计数失败:', e.message);
+    logger.hookWarn(`对话计数失败: ${e.message}`, 'sessionStart');
   }
-  
+
   // 记录会话开始时间
   plugin.state.sessionStartTime = new Date().toISOString();
-  
+
   // 加载主人信息
   const userPath = path.join(process.env.HOME || '', '.openclaw/workspace/USER.md');
   if (fs.existsSync(userPath)) {
     try {
       const content = fs.readFileSync(userPath, 'utf8');
       plugin.state.ownerInfo = parseUserInfo(content);
-      console.log('🎀 EVA: Owner info loaded:', plugin.state.ownerInfo?.name || 'Unknown');
+      logger.hook(`Owner info loaded: ${plugin.state.ownerInfo?.name || 'Unknown'}`, 'sessionStart');
     } catch (e) {
-      console.warn('⚠️ EVA: Failed to load owner info');
+      logger.hookWarn(`Failed to load owner info`, 'sessionStart');
     }
   }
-  
-  // 加载上次情感状态
+
+  // 加载上次情感状态（从 eva-soul-state.json 恢复）
   const statePath = path.join(plugin.config.memoryPath, 'eva-soul-state.json');
   if (fs.existsSync(statePath)) {
     try {
       const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
       plugin.state.currentEmotion = state.currentEmotion || 'neutral';
       plugin.state.personality = state.personality || 'gentle';
+      plugin.state.lastInteraction = state.lastInteraction;
+      plugin.state.totalInteractions = state.totalInteractions || 0;
+      plugin.state.isSleeping = state.isSleeping || false;
+      logger.hook(
+        `State restored — emotion: ${plugin.state.currentEmotion}, personality: ${plugin.state.personality}`,
+        'sessionStart'
+      );
     } catch (e) {
-      // ignore
+      // 忽略解析错误，使用默认值
     }
   }
-  
-  await plugin.saveState();
-  
+
+  // 立即保存（确保状态写入磁盘，后续 hooks 可读）
+  try {
+    await plugin.saveState();
+    logger.hook('State saved after session start', 'sessionStart');
+  } catch (e) {
+    logger.hookWarn(`Failed to save state: ${e.message}`, 'sessionStart');
+  }
+
   return {
     injected: true,
     message: 'EVA Soul initialized'
@@ -62,7 +80,10 @@ function parseUserInfo(content) {
   if (!content) return info;
   const lines = content.split('\n');
   for (const line of lines) {
-    const match = line.match(/^- \*\*([^:]+):\*\* (.+)$/);
+    // 支持两种格式：
+    // - **Name:** value
+    // - What to call them: value
+    const match = line.match(/^- \*\*([^:]+):\*\* (.+)$/) || line.match(/^([^:]+): (.+)$/);
     if (match && match[1] && match[2]) {
       try {
         info[match[1].trim()] = match[2].trim();

@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { getAIName } = require('../lib/core/config');
 const { fetchWithRetry } = require('./errorHandler');
+const logger = require('./logger');
 
 const VECTOR_CONFIG = {
   apiKey: process.env.SILICONFLOW_API_KEY,
@@ -18,7 +19,7 @@ async function preResponseHook(ctx, plugin) {
     return ctx;
   }
 
-  console.log('🎀 EVA: Injecting personality and loading memories...');
+  logger.hook('Injecting personality and loading memories...', 'preResponse');
 
   // 构建人格注入
   const personalityPrompt = buildPersonalityPrompt(plugin);
@@ -57,7 +58,7 @@ async function loadRelevantMemories(ctx, plugin) {
   const longTermMemories = await loadLongTermMemories(userMessage);
   if (longTermMemories.length > 0) {
     memories.push(...longTermMemories);
-    console.log('🎀 EVA: Loaded', longTermMemories.length, 'long-term memories');
+    logger.hook(`Loaded ${longTermMemories.length} long-term memories`, 'preResponse');
   }
 
   // 从 concepts 文件搜索（直接从文件读取，避免依赖 plugin.state）
@@ -69,8 +70,9 @@ async function loadRelevantMemories(ctx, plugin) {
       concepts = data.concepts || [];
     }
   } catch (e) {
-    console.warn('[preResponse] Load concepts failed:', e.message);
+    logger.hookWarn(`Load concepts failed: ${e.message}`, 'preResponse');
   }
+
   if (concepts.length > 0) {
     try {
       const queryEmbedding = await generateEmbedding(userMessage);
@@ -89,14 +91,14 @@ async function loadRelevantMemories(ctx, plugin) {
           .slice(0, 5);
 
         if (results.length > 0) {
-          console.log('🎀 EVA: Vector search found', results.length, 'relevant concepts');
+          logger.hook(`Vector search found ${results.length} relevant concepts`, 'preResponse');
           results.forEach(r => {
             memories.push(`- ${r.item.value} (${r.item.type || 'concept'})`);
           });
         }
       }
     } catch (e) {
-      console.warn('⚠️ EVA: Vector search failed:', e.message);
+      logger.hookWarn(`Vector search failed: ${e.message}`, 'preResponse');
     }
   }
 
@@ -135,7 +137,7 @@ function loadFromDiaries(query) {
       }
     }
   } catch (e) {
-    console.warn('⚠️ EVA: Load diaries error:', e.message);
+    logger.hookWarn(`Load diaries error: ${e.message}`, 'preResponse');
   }
 
   return memories;
@@ -151,7 +153,7 @@ async function loadLongTermMemories(query) {
   // 首先从日记文件加载
   const diaryMemories = loadFromDiaries(query);
   if (diaryMemories.length > 0) {
-    console.log('🎀 EVA: Found', diaryMemories.length, 'relevant memories from diaries');
+    logger.hook(`Found ${diaryMemories.length} relevant memories from diaries`, 'preResponse');
     return diaryMemories.map(m => `- ${m.content} [${m.tier}]`).join('\n');
   }
 
@@ -226,12 +228,12 @@ async function loadLongTermMemories(query) {
             .slice(0, 8);
 
           if (topMemories.length > 0) {
-            console.log('🎀 EVA: Vector search found', topMemories.length, 'relevant memories');
+            logger.hook(`Vector search found ${topMemories.length} relevant memories`, 'preResponse');
             return topMemories.map(m => `- ${m.content} [${m.tier || 'memory'}]`).join('\n');
           }
         }
       } catch (e) {
-        console.warn('⚠️ EVA: Vector search failed:', e.message);
+        logger.hookWarn(`Vector search failed: ${e.message}`, 'preResponse');
       }
     }
 
@@ -243,7 +245,7 @@ async function loadLongTermMemories(query) {
     return recent.map(m => `- ${m.content} [${m.tier || 'memory'}]`).join('\n');
 
   } catch (e) {
-    console.warn('⚠️ EVA: Load memories error:', e.message);
+    logger.hookWarn(`Load memories error: ${e.message}`, 'preResponse');
     return '';
   }
 }
@@ -272,7 +274,7 @@ async function generateEmbedding(text) {
       return data.data[0].embedding;
     }
   } catch (e) {
-    console.warn('[preResponse] embedding error:', e.message);
+    logger.hookWarn(`Embedding error: ${e.message}`, 'preResponse');
   }
   return null;
 }

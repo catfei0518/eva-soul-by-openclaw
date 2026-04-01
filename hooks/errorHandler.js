@@ -2,6 +2,8 @@
  * 错误处理工具 - API重试、降级处理、错误日志
  */
 
+const logger = require('./logger');
+
 // API重试配置
 const RETRY_CONFIG = {
   maxRetries: 3,
@@ -14,35 +16,35 @@ const RETRY_CONFIG = {
  */
 async function fetchWithRetry(url, options = {}, config = RETRY_CONFIG) {
   let lastError;
-  
+
   for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), config.timeout);
-      
+
       const response = await fetch(url, {
         ...options,
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       return response;
-      
+
     } catch (error) {
       lastError = error;
-      console.warn(`⚠️ API请求失败 (尝试 ${attempt}/${config.maxRetries}):`, error.message);
-      
+      logger.hookWarn(`API请求失败 (尝试 ${attempt}/${config.maxRetries}): ${error.message}`, 'errorHandler');
+
       if (attempt < config.maxRetries) {
         await sleep(config.retryDelay * attempt);
       }
     }
   }
-  
+
   // 所有重试都失败
   throw lastError;
 }
@@ -65,9 +67,9 @@ function logError(context, error, details = {}) {
     stack: error.stack,
     ...details
   };
-  
-  console.error('❌ EVA错误:', JSON.stringify(errorLog, null, 2));
-  
+
+  logger.error(`EVA错误: ${errorLog.context}`, 'errorHandler', errorLog);
+
   // 可以扩展为保存到文件
   return errorLog;
 }
@@ -91,13 +93,13 @@ async function withFallback(primaryFn, fallbackFn, context = 'operation') {
   try {
     return await primaryFn();
   } catch (error) {
-    console.warn(`⚠️ 主方案失败，使用备用方案: ${context}`);
+    logger.hookWarn(`主方案失败，使用备用方案: ${context}`, 'errorHandler');
     logError(context + '_fallback', error);
-    
+
     try {
       return await fallbackFn();
     } catch (fallbackError) {
-      console.error(`❌ 备用方案也失败: ${context}`);
+      logger.fail(`备用方案也失败: ${context}`, 'errorHandler', fallbackError);
       logError(context + '_fallback_failed', fallbackError);
       return null;
     }
@@ -112,30 +114,30 @@ class SimpleCache {
     this.cache = new Map();
     this.ttl = ttl;
   }
-  
+
   set(key, value) {
     this.cache.set(key, {
       value,
       timestamp: Date.now()
     });
   }
-  
+
   get(key) {
     const item = this.cache.get(key);
     if (!item) return null;
-    
+
     if (Date.now() - item.timestamp > this.ttl) {
       this.cache.delete(key);
       return null;
     }
-    
+
     return item.value;
   }
-  
+
   has(key) {
     return this.get(key) !== null;
   }
-  
+
   clear() {
     this.cache.clear();
   }
