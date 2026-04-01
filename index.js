@@ -1,5 +1,5 @@
 /**
- * EVA Soul Plugin - OpenClaw 官方插件 (v2.3.0)
+ * EVA Soul Plugin - OpenClaw 官方插件 (v2.4.0)
  * 兼容 OpenClaw 2026.3.8+ 新版 API
  */
 
@@ -488,6 +488,49 @@ async function executeEvaAsk(args) {
   }
 }
 
+// ========== 对话压缩工具 ==========
+
+async function executeEvaCompress(args) {
+  const { action = 'compress', limit = 10 } = args;
+
+  switch (action) {
+    case 'compress': {
+      const { manualCompress } = require('./hooks/postResponse');
+      const result = await manualCompress(config.memoryPath);
+      if (!result) {
+        return { success: false, reason: '对话不足20轮，无需压缩' };
+      }
+      return result;
+    }
+    case 'list': {
+      const { getSummaries } = require('./hooks/postResponse');
+      return { summaries: getSummaries(config.memoryPath, limit) };
+    }
+    case 'stats': {
+      const { getTurnCount } = require('./hooks/postResponse') || {};
+      // 轮次信息从计数器文件读取
+      const counterFile = path.join(config.memoryPath, 'conversations', '.turn_counter.json');
+      let turns = 0, lastCompress = null;
+      try {
+        if (fs.existsSync(counterFile)) {
+          const data = JSON.parse(fs.readFileSync(counterFile, 'utf8'));
+          turns = data.turns || 0;
+          lastCompress = data.lastCompress || null;
+        }
+      } catch (e) {}
+      const { getSummaries } = require('./hooks/postResponse');
+      return {
+        currentTurns: turns,
+        triggerAt: 20,
+        remaining: Math.max(0, 20 - turns),
+        lastCompress
+      };
+    }
+    default:
+      return { error: 'Unknown action. Use: compress, list, stats' };
+  }
+}
+
 // ========== 反馈工具 ==========
 
 async function executeEvaFeedback(args) {
@@ -788,6 +831,19 @@ function register(api) {
           }
         },
         execute: executeEvaFeedback
+      },
+      {
+        name: 'eva_compress',
+        label: 'EVA Compress',
+        description: '对话压缩：自动汇总历史对话为摘要存入长期记忆，支持手动压缩 (compress/list/stats)',
+        parameters: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['compress', 'list', 'stats'], description: 'compress: 手动压缩 / list: 查看摘要列表 / stats: 轮次状态' },
+            limit: { type: 'integer', description: 'list 时返回条数限制' }
+          }
+        },
+        execute: executeEvaCompress
       }
     ];
     

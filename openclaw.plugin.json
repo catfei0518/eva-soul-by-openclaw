@@ -131,7 +131,8 @@
     "eva_values",
     "eva_sleep",
     "eva_ask",
-    "eva_feedback"
+    "eva_feedback",
+    "eva_compress"
   ],
   "cli": {
     "commands": ["eva", "eva-status", "eva-memory", "eva-emotion"]
