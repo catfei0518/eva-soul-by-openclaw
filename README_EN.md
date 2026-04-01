@@ -115,6 +115,7 @@ openclaw gateway restart
 |`eva_sleep`|Sleep / wake|
 |`eva_ask`|Active asking|
 |`eva_feedback`|Feedback weight (record/stats/flag)|
+|`eva_compress`|Dialogue compression (auto-summary/list/summaries)|
 |`eva_full_stats`|Full statistics|
 
 ## 💻 CLI Commands
@@ -168,8 +169,8 @@ openclaw gateway restart
 
 ## 📝 Versions
 
-- **v2.4.0** (2026-04-01) – Stability iteration: structured logger module, state persistence fix, Jest unit test suite (72 tests), new eva_feedback tool (user feedback adjusts concept weight), preResponse integrates feedback-aware concept ranking
-- **v2.3.0** (2026-04-01) – Full Refactor: 15 tools fully implemented, fixed merge conflicts/API key exposure/path issues, real multi-dimensional decision scoring, unified LRU+TTL cache, integrated errorHandler/performanceMonitor
+- **v2.4.0** (2026-04-01) – Stability iteration: structured logger, state persistence, Jest (72 tests), eva_feedback (feedback→concept weight), eva_compress (auto-summary every 20 turns)
+- **v2.3.0** (2026-04-01) – Full refactor: 15 tools, fixed conflicts/API key/path issues, real multi-dim decision scoring, unified LRU+TTL cache
 
 - **v2.1.1** (2026-03-13) – Bug fixes & adapter update: fixed tool invocation error "tool.execute is not a function", fully adapted to OpenClaw 2026.3.8+ new plugin API, refactored index.js, removed redundant code
 
