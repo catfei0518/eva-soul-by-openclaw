@@ -3,7 +3,7 @@
 > 有灵魂的AI认知系统 | AI Cognitive System with Soul
 ![夏娃之魂](https://repository-images.githubusercontent.com/1175981838/57116edc-cf8f-4de3-90bb-69f30eaeec2f)
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.3.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.4.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/node-18%2B-green" alt="Node">
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
 </p>
@@ -92,6 +92,7 @@ openclaw gateway restart
 | `eva_values` | 价值观操作 |
 | `eva_sleep` | 睡眠/唤醒 |
 | `eva_ask` | 主动提问 |
+| `eva_feedback` | 反馈权重（记录/统计/标记） |
 | `eva_full_stats` | 完整统计 |
 
 ## 💻 CLI 命令
@@ -107,7 +108,7 @@ openclaw eva stats       # 查看统计
 
 | 指标 | 数量 |
 |------|------|
-| Tools | 15 |
+| Tools | 16 |
 | Hooks | 7 |
 | 概念 | 27+ |
 | 模式 | 73+ |
@@ -142,6 +143,7 @@ openclaw gateway restart
 
 ## 📝 版本
 
+- **v2.4.0** (2026-04-01) - 稳定性迭代：结构化日志模块、状态持久化修复、Jest单元测试框架(72测试全绿)、新增 eva_feedback 工具（反馈影响概念权重）、preResponse 集成反馈感知
 - **v2.3.0** (2026-04-01) - 全面重构：15个工具全部实现，修复合并冲突/API Key暴露/路径问题，决策系统真实多维打分，统一缓存LRU+TTL，接入 errorHandler/performanceMonitor
 - **v2.1.1** (2026-03-13) - 问题修复与适配更新：修复工具调用错误 tool.execute is not a function，全面适配 OpenClaw 2026.3.8+ 新版插件 API，重构 index.js，移除冗余代码
 - **v2.0.4** (2026-03-11) - 理解层与记忆增强：新增理解层增强功能，新增记忆合并系统，性能监控增强

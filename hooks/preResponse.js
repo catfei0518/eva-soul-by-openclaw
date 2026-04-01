@@ -87,7 +87,14 @@ async function loadRelevantMemories(ctx, plugin) {
 
         const results = scored
           .filter(r => r.score > 0.1)
-          .sort((a, b) => b.score - a.score)
+          .map(r => ({
+            item: r.item,
+            score: r.score,
+            // 反馈调整权重：feedbackScore 每偏离1则 importance 调整 ±10%
+            effectiveWeight: (r.item.importance || 5) * (1 + (r.item.feedbackScore || 0) * 0.1)
+          }))
+          // 按有效权重排序（反馈越正越优先，负面反馈的概念降低权重）
+          .sort((a, b) => b.effectiveWeight - a.effectiveWeight)
           .slice(0, 5);
 
         if (results.length > 0) {

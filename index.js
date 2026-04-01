@@ -488,6 +488,56 @@ async function executeEvaAsk(args) {
   }
 }
 
+// ========== 反馈工具 ==========
+
+async function executeEvaFeedback(args) {
+  const { action = 'record', conceptId, type, note } = args;
+
+  switch (action) {
+    case 'record': {
+      // 记录反馈：positive / negative / neutral
+      if (!conceptId) return { error: 'conceptId required' };
+      if (!['positive', 'negative', 'neutral'].includes(type)) {
+        return { error: 'type must be: positive | negative | neutral' };
+      }
+      if (!conceptSystem) return { error: 'ConceptSystem not initialized' };
+      return conceptSystem.adjustFeedback(conceptId, type, note || '');
+    }
+
+    case 'stats': {
+      if (!conceptSystem) return { error: 'ConceptSystem not initialized' };
+      return conceptSystem.getFeedbackStats();
+    }
+
+    case 'flagged': {
+      if (!conceptSystem) return { error: 'ConceptSystem not initialized' };
+      return { flagged: conceptSystem.getFlaggedConcepts() };
+    }
+
+    case 'weight': {
+      // 获取带反馈权重的概念列表（用于 preResponse 排序）
+      if (!conceptSystem) return { error: 'ConceptSystem not initialized' };
+      const concepts = conceptSystem.getConceptsWithWeight();
+      return {
+        concepts: concepts
+          .sort((a, b) => b.effectiveWeight - a.effectiveWeight)
+          .slice(0, 20)
+          .map(c => ({
+            value: c.value,
+            type: c.type,
+            importance: c.importance,
+            effectiveWeight: c.effectiveWeight,
+            feedbackScore: c.feedbackScore,
+            flagged: c.flagged
+          }))
+      };
+    }
+
+    default:
+      return { error: 'Unknown action. Use: record, stats, flagged, weight' };
+  }
+}
+
 /**
  * 插件注册函数
  */
@@ -723,6 +773,21 @@ function register(api) {
           }
         },
         execute: executeEvaAsk
+      },
+      {
+        name: 'eva_feedback',
+        label: 'EVA Feedback',
+        description: '记录用户对概念/记忆的反馈，影响后续检索权重 (record/stats/flagged/weight)',
+        parameters: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['record', 'stats', 'flagged', 'weight'], description: 'record: 记录反馈 / stats: 反馈统计 / flagged: 负面概念 / weight: 带权重的概念列表' },
+            conceptId: { type: 'string', description: '概念ID或value（record时必填）' },
+            type: { type: 'string', enum: ['positive', 'negative', 'neutral'], description: '反馈类型（record时必填）' },
+            note: { type: 'string', description: '可选备注' }
+          }
+        },
+        execute: executeEvaFeedback
       }
     ];
     

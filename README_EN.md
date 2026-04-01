@@ -3,7 +3,7 @@
 > AI Cognitive System with Soul | 有灵魂的AI认知系统
 ![EVA Soul](https://repository-images.githubusercontent.com/1175981838/57116edc-cf8f-4de3-90bb-69f30eaeec2f)
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.3.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.4.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/node-18%2B-green" alt="Node">
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
 </p>
@@ -114,6 +114,7 @@ openclaw gateway restart
 |`eva_values`|Value system operations|
 |`eva_sleep`|Sleep / wake|
 |`eva_ask`|Active asking|
+|`eva_feedback`|Feedback weight (record/stats/flag)|
 |`eva_full_stats`|Full statistics|
 
 ## 💻 CLI Commands
@@ -130,7 +131,7 @@ openclaw eva stats       # View statistics
 
 |Metric|Count|
 |---|---|
-|Tools|15|
+|Tools|16|
 |Hooks|7|
 |Concepts|27+|
 |Patterns|73+|
@@ -167,6 +168,7 @@ openclaw gateway restart
 
 ## 📝 Versions
 
+- **v2.4.0** (2026-04-01) – Stability iteration: structured logger module, state persistence fix, Jest unit test suite (72 tests), new eva_feedback tool (user feedback adjusts concept weight), preResponse integrates feedback-aware concept ranking
 - **v2.3.0** (2026-04-01) – Full Refactor: 15 tools fully implemented, fixed merge conflicts/API key exposure/path issues, real multi-dimensional decision scoring, unified LRU+TTL cache, integrated errorHandler/performanceMonitor
 
 - **v2.1.1** (2026-03-13) – Bug fixes & adapter update: fixed tool invocation error "tool.execute is not a function", fully adapted to OpenClaw 2026.3.8+ new plugin API, refactored index.js, removed redundant code
