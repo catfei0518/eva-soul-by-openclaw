@@ -3,7 +3,7 @@
 > AI Cognitive System with Soul | 有灵魂的AI认知系统
 ![EVA Soul](https://repository-images.githubusercontent.com/1175981838/57116edc-cf8f-4de3-90bb-69f30eaeec2f)
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.4.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.5.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/node-18%2B-green" alt="Node">
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
 </p>
@@ -169,23 +169,16 @@ openclaw gateway restart
 
 ## 📝 Versions
 
-- **v2.4.0** (2026-04-01) – Stability iteration: structured logger, state persistence, Jest (72 tests), eva_feedback (feedback→concept weight), eva_compress (auto-summary every 20 turns)
-- **v2.3.0** (2026-04-01) – Full refactor: 15 tools, fixed conflicts/API key/path issues, real multi-dim decision scoring, unified LRU+TTL cache
-
-- **v2.1.1** (2026-03-13) – Bug fixes & adapter update: fixed tool invocation error "tool.execute is not a function", fully adapted to OpenClaw 2026.3.8+ new plugin API, refactored index.js, removed redundant code
-
-- **v2.0.4** (2026-03-11) – Understanding layer & memory enhancement: added understanding layer enhancement, new memory merge system, enhanced performance monitoring
-
-- **v2.0.3** (2026-03-10) – Performance monitoring: new performance monitoring module, real-time system performance tracking
-
-- **v2.0.2** (2026-03-09) – CLI & error handling optimization: optimized CLI command experience, enhanced error handling mechanism
-
-- **v2.0.1** (2026-03-08) – Memory & emotion system enhancement: enhanced memory system, emotion system optimization
-
+- **v2.5.0** (2026-04-01) – Studio visualization dashboard / i18n 4 languages / eva_compress / structured logger / Jest 72 tests / state persistence fix
+- **v2.4.0** (2026-04-01) – eva_feedback system / compress dialogue / state persistence / Jest 72 tests
+- **v2.3.0** (2026-04-01) – Full refactor: 17 tools, fixed conflicts/API key/path issues, real multi-dim decision scoring, unified LRU+TTL cache
+- **v2.1.1** (2026-03-13) – Bug fixes & adapter update: fixed tool invocation error, fully adapted to OpenClaw 2026.3.8+ API
+- **v2.0.4** (2026-03-11) – Understanding layer & memory enhancement, performance monitoring
+- **v2.0.3** (2026-03-10) – Performance monitoring module
+- **v2.0.2** (2026-03-09) – CLI & error handling optimization
+- **v2.0.1** (2026-03-08) – Memory & emotion system enhancement
 - **v2.0.0** (2026-03-11) – Official OpenClaw plugin release, complete rewrite
-
 - **v1.1.0** – Full Python version (deprecated)
-
 - **v1.0.0** – Basic Python version (deprecated)
 
 ## 📄 License
